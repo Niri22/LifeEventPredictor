@@ -66,6 +66,21 @@ class Traceability(BaseModel):
     audit_log: list[AuditEntry]
 
 
+class GovernanceTier(BaseModel):
+    tier: str
+    label: str
+    reason: str
+    workflow: str
+
+
+class MacroContext(BaseModel):
+    boc_prime_rate: float
+    vix: float
+    tsx_volatility: float
+    rates_high: bool
+    market_volatile: bool
+
+
 class PersonaTier(str, Enum):
     ASPIRING_AFFLUENT = "aspiring_affluent"
     STICKY_FAMILY_LEADER = "sticky_family_leader"
@@ -85,6 +100,11 @@ class SignalHypothesis(BaseModel):
     signal: str
     confidence: float
     traceability: Traceability
+    governance: GovernanceTier | None = None
+    macro_context: MacroContext | None = None
+    macro_reasons: list[str] = []
+    nudge: str = ""
+    feedback_reason: str | None = None
     staged_at: str
     status: ReviewStatus = ReviewStatus.PENDING
 
@@ -96,7 +116,23 @@ class PredictResponse(BaseModel):
     message: str = ""
 
 
+class FeedbackRequest(BaseModel):
+    user_id: str
+    persona_tier: str
+    signal: str
+    product_code: str
+    confidence: float
+    governance_tier: str = ""
+    action: str = Field(description="approved | rejected | pending")
+    reason: str = ""
+
+
+class FeedbackResponse(BaseModel):
+    status: str = "recorded"
+    total_feedback: int = 0
+
+
 class HealthResponse(BaseModel):
     status: str = "healthy"
     models_loaded: list[str] = []
-    version: str = "0.1.0"
+    version: str = "0.2.0"

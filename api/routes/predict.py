@@ -1,10 +1,12 @@
-"""POST /predict -- persona-routed signal detection endpoint."""
+"""POST /predict -- persona-routed signal detection with governance, macro, nudges, and feedback."""
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
 from api.schemas import (
     AuditEntry,
+    GovernanceTier,
+    MacroContext,
     PredictRequest,
     PredictResponse,
     PersonaTier,
@@ -13,8 +15,12 @@ from api.schemas import (
     TargetProduct,
     Traceability,
 )
+from src.api.feedback import apply_feedback_penalty
+from src.api.macro_agent import adjust_confidence_for_macro, fetch_macro_snapshot
 from src.classifier.persona_classifier import classify_persona_tier
+from src.features.nudges import generate_composite_reason, generate_nudge
 from src.features.pipeline import build_features
+from src.models.governance import classify_governance_tier
 from src.models.predict import XGBSignalModel, predict_signal
 
 router = APIRouter()
@@ -54,7 +60,6 @@ def predict(request: PredictRequest):
     txns_df = pd.DataFrame(txn_records)
     txns_df["timestamp"] = pd.to_datetime(txns_df["timestamp"])
 
-    # Build a minimal profile for feature engineering
     profiles_df = pd.DataFrame([{
         "user_id": request.user_id,
         "rrsp_room": request.rrsp_room,
@@ -70,8 +75,7 @@ def predict(request: PredictRequest):
 
     if features.empty:
         return PredictResponse(
-            user_id=request.user_id,
-            persona_tier="not_eligible",
+            user_id=request.user_id, persona_tier="not_eligible",
             message="Insufficient data to compute features",
         )
 
@@ -81,9 +85,8 @@ def predict(request: PredictRequest):
 
     if persona_tier == "not_eligible":
         return PredictResponse(
-            user_id=request.user_id,
-            persona_tier=persona_tier,
-            message="AUA below $50k threshold -- not eligible for product recommendations",
+            user_id=request.user_id, persona_tier=persona_tier,
+            message="AUA below $50k threshold",
         )
 
     feature_dict = latest.to_dict()
@@ -91,22 +94,56 @@ def predict(request: PredictRequest):
 
     if hypothesis_raw is None:
         return PredictResponse(
-            user_id=request.user_id,
-            persona_tier=persona_tier,
-            message=f"No signal detected for {persona_tier} tier at this time",
+            user_id=request.user_id, persona_tier=persona_tier,
+            message=f"No signal detected for {persona_tier}",
         )
 
     trace = hypothesis_raw["traceability"]
+    product_code = trace["target_product"]["code"]
+    product_name = trace["target_product"]["name"]
+
+    # Macro adjustment
+    macro = fetch_macro_snapshot()
+    adj_conf, macro_reasons = adjust_confidence_for_macro(
+        hypothesis_raw["confidence"], persona_tier, product_code, macro,
+    )
+
+    # Feedback penalty
+    fb_conf, fb_reason = apply_feedback_penalty(adj_conf, persona_tier, hypothesis_raw["signal"], product_code)
+
+    # Governance tier
+    illiquidity = 0.0
+    for e in trace["audit_log"]:
+        if e["feature"] == "illiquidity_ratio":
+            illiquidity = e["value"]
+            break
+    gov = classify_governance_tier(fb_conf, product_code, illiquidity)
+
+    # Nudge
+    behavioral = generate_nudge(persona_tier, hypothesis_raw["signal"], feature_dict, product_name)
+    nudge = generate_composite_reason(behavioral, macro_reasons, fb_reason)
+
     hypothesis = SignalHypothesis(
         user_id=request.user_id,
         persona_tier=PersonaTier(persona_tier),
         signal=hypothesis_raw["signal"],
-        confidence=hypothesis_raw["confidence"],
+        confidence=fb_conf,
         traceability=Traceability(
             spending_buffer=SpendingBuffer(**trace["spending_buffer"]),
             target_product=TargetProduct(**trace["target_product"]),
             audit_log=[AuditEntry(**e) for e in trace["audit_log"]],
         ),
+        governance=GovernanceTier(**gov),
+        macro_context=MacroContext(
+            boc_prime_rate=macro.boc_prime_rate,
+            vix=macro.vix,
+            tsx_volatility=macro.tsx_volatility,
+            rates_high=macro.rates_high,
+            market_volatile=macro.market_volatile,
+        ),
+        macro_reasons=macro_reasons,
+        nudge=nudge,
+        feedback_reason=fb_reason,
         staged_at=hypothesis_raw["staged_at"],
     )
 
@@ -114,5 +151,5 @@ def predict(request: PredictRequest):
         user_id=request.user_id,
         persona_tier=persona_tier,
         hypothesis=hypothesis,
-        message=f"Signal detected: {hypothesis_raw['signal']} (confidence: {hypothesis_raw['confidence']})",
+        message=f"Signal: {hypothesis_raw['signal']} | Gov: {gov['tier']} | Conf: {fb_conf}",
     )

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from api.routes import health, predict
+from api.routes import feedback, health, predict
 from api.routes.predict import get_model
 
 
@@ -19,15 +19,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Wealthsimple Pulse - Signal Engine",
-    description="Predictive API for wealth-tier persona classification and high-margin product conversion",
-    version="0.1.0",
+    description="Predictive API with tiered governance, macro context, active learning, and persona nudges",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
 app.include_router(predict.router, tags=["prediction"])
+app.include_router(feedback.router, tags=["feedback"])
 app.include_router(health.router, tags=["health"])
 
 
 @app.get("/")
 def root():
-    return {"service": "Wealthsimple Pulse Signal Engine", "version": "0.1.0"}
+    return {"service": "Wealthsimple Pulse Signal Engine", "version": "0.2.0"}
