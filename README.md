@@ -10,6 +10,66 @@ A predictive Signal Engine that classifies retail banking users into wealth-tier
 | Sticky Family Leader | $100k-$500k | Liquidity Watchdog | Summit Portfolio + WS Credit Card |
 | Generation Nerd | $500k+ | Analyst-in-Pocket | AI Research + Direct Indexing + Private Credit |
 
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Language** | Python 3.11+ |
+| **Data & ML** | pandas, numpy, scikit-learn, XGBoost, joblib |
+| **Synthetic Data** | Faker (profiles), pyarrow (Parquet) |
+| **Config** | PyYAML (`config/settings.yaml`) |
+| **API** | FastAPI, uvicorn, Pydantic |
+| **UI** | Streamlit, Plotly |
+| **Storage** | Parquet (raw/processed/experiments), SQLite (feedback) |
+| **Testing** | pytest, httpx |
+
+The pipeline is structured so the ML model can be swapped (e.g. to a PyTorch TCN) via the `BaseSignalModel` interface in `src/models/predict.py`.
+
+## Business Rules
+
+### Persona eligibility (AUA thresholds)
+
+- **Not eligible**: AUA &lt; $50k — no product recommendations.
+- **Aspiring Affluent**: $50k ≤ AUA &lt; $100k — eligible for Retirement Accelerator (RRSP Loan).
+- **Sticky Family Leader**: $100k ≤ AUA &lt; $500k — eligible for Summit Portfolio + WS Credit Card.
+- **Generation Nerd**: AUA ≥ $500k — eligible for AI Research + Direct Indexing + Private Credit.
+
+Thresholds are configurable in `config/settings.yaml` under `persona_thresholds`.
+
+### Governance tier (traffic light)
+
+Each recommendation is assigned a governance tier that drives the approval workflow:
+
+| Tier | Condition | Workflow |
+|------|-----------|----------|
+| **Green** | Confidence &gt; 0.9 and product risk not high | Silent approval or low-friction notification |
+| **Amber** | Confidence 0.7–0.9 or medium-risk product | Batch cohort approval (curator can approve the whole cohort) |
+| **Red** | Confidence &lt; 0.6, or Summit allocation &gt; 20% of AUA | 1-to-1 human review required |
+
+Product risk: RRSP Loan and AI Research = medium; Summit Portfolio = high. Red is also triggered when illiquidity ratio (e.g. Summit share of AUA) exceeds 20%.
+
+### Macro adjustments
+
+- **Retirement Accelerator (RRSP Loan)**  
+  If Bank of Canada prime rate &gt; 5%, confidence is reduced by 10% unless the estimated tax refund offset is ≥ 1.2× the interest cost.
+
+- **Summit Portfolio**  
+  If VIX &gt; 25, confidence is reduced (up to 15%) because illiquid PE is riskier in volatile markets.
+
+- **AI Research / Direct Index**  
+  If VIX &gt; 25, confidence receives a small boost (3%) — volatile markets increase demand for research and tax-loss harvesting.
+
+Macro inputs (BoC rate, VIX, TSX volatility) are mocked in `src/api/macro_agent.py` and can be replaced with live APIs.
+
+### Active learning (feedback penalty)
+
+Curator approve/reject decisions are stored in SQLite (`data/feedback.db`, table `human_feedback`). For each recommendation type (persona + signal + product), if the rejection rate exceeds 60% and there are at least 3 decisions, future confidence for that type is reduced (up to 15%) so the system learns curator boundaries (e.g. “don’t suggest loans in a recession”).
+
+### Model and surfacing
+
+- Per-persona binary XGBoost classifiers detect signals (e.g. `leapfrog_ready`, `liquidity_warning`, `harvest_opportunity`).
+- Confidence threshold and precision target are in `config/settings.yaml` (`model.confidence_threshold`, `model.precision_target`); thresholds are tuned for ~80% precision on holdout data.
+
 ## Quick Start
 
 ```bash
@@ -34,9 +94,11 @@ python -m streamlit run ui/app.py
 
 ## API Endpoints
 
-- `GET /` -- Service info
-- `GET /health` -- Model load status
-- `POST /predict` -- Submit transactions, receive persona-routed signal hypothesis with full traceability
+- `GET /` — Service info
+- `GET /health` — Model load status
+- `POST /predict` — Submit transactions; returns persona-routed signal hypothesis with governance tier, macro context, and traceability
+- `POST /feedback` — Record curator decision (approved/rejected/pending) for active learning
+- `GET /feedback/stats` — Aggregate feedback counts and approval rate
 
 ## Testing
 
