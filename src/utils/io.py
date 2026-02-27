@@ -8,6 +8,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_RAW = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
+DATA_EXPERIMENTS = PROJECT_ROOT / "data" / "experiments"
 CONFIG_PATH = PROJECT_ROOT / "config" / "settings.yaml"
 
 

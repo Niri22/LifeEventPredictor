@@ -25,11 +25,11 @@ python -m src.features.pipeline
 # Phase 3: Train per-persona signal detectors
 python -m src.models.train
 
-# Phase 4: Start the FastAPI service
-uvicorn api.main:app --reload
+# Phase 4: Start the FastAPI service (use --port 8001 if 8000 is blocked on Windows)
+python -m uvicorn api.main:app --reload --port 8001
 
 # Phase 5: Launch the curator dashboard
-streamlit run ui/app.py
+python -m streamlit run ui/app.py
 ```
 
 ## API Endpoints
