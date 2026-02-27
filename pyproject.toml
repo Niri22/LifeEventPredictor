@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "wealthsimple-pulse"
+version = "0.1.0"
+description = "Predictive Signal Engine for wealth-tier persona classification and high-margin product conversion"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas",
+    "numpy",
+    "faker",
+    "pyarrow",
+    "pyyaml",
+    "scikit-learn",
+    "xgboost",
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "streamlit",
+    "plotly",
+    "joblib",
+    "httpx",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

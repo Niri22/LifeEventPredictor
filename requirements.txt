@@ -1,0 +1,15 @@
+pandas
+numpy
+faker
+pyarrow
+pyyaml
+scikit-learn
+xgboost
+fastapi
+uvicorn[standard]
+pydantic
+streamlit
+plotly
+joblib
+pytest
+httpx

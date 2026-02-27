@@ -1,0 +1,55 @@
+data_generation:
+  num_users: 1000
+  months: 18
+  start_date: "2024-07-01"
+  seed: 42
+
+  persona_weights:
+    baseline: 0.40
+    aspiring_affluent: 0.20
+    sticky_family_leader: 0.20
+    generation_nerd: 0.20
+
+  income_brackets:
+    low: [40000, 65000]
+    mid: [65000, 120000]
+    high: [120000, 250000]
+    ultra: [250000, 500000]
+
+  aua_ranges:
+    aspiring_affluent: [50000, 99999]
+    sticky_family_leader: [100000, 499999]
+    generation_nerd: [500000, 1500000]
+    baseline: [5000, 49999]
+
+  txns_per_day_lambda: 3
+  signal_onset_buffer_months: 4  # earliest onset is 4 months into the window
+
+persona_thresholds:
+  aspiring_affluent_min: 50000
+  aspiring_affluent_max: 100000
+  sticky_family_leader_min: 100000
+  sticky_family_leader_max: 500000
+  generation_nerd_min: 500000
+
+products:
+  aspiring_affluent:
+    code: "RRSP_LOAN"
+    name: "Retirement Accelerator (RRSP Loan)"
+    description: "Leverage unused RRSP room to leapfrog into Premium status"
+
+  sticky_family_leader:
+    code: "SUMMIT_PORTFOLIO"
+    name: "Summit Portfolio (Private Equity) + WS Credit Card"
+    description: "Access institutional-grade private equity with liquidity monitoring"
+
+  generation_nerd:
+    code: "AI_RESEARCH_DIRECT_INDEX"
+    name: "AI Research Dashboard + Direct Indexing + Private Credit"
+    description: "Institutional-grade analysis with automated tax-loss harvesting"
+
+model:
+  test_size: 0.2
+  random_state: 42
+  confidence_threshold: 0.65
+  precision_target: 0.80
