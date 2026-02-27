@@ -20,15 +20,25 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.api.feedback import get_feedback_stats, record_feedback, apply_feedback_penalty
-from src.api.macro_agent import MacroSnapshot, adjust_confidence_for_macro, fetch_macro_snapshot
-from src.classifier.persona_classifier import classify_persona_tier
+from src.api.macro_agent import MacroSnapshot, adjust_confidence_for_macro
 from src.classifier.guardrails import apply_guardrails_to_hypothesis
 from src.classifier.cohort_engine import build_intent_cohorts
 from src.features.nudges import generate_composite_reason, generate_nudge
-from src.features.pipeline import build_features
 from src.models.governance import enrich_hypothesis_with_governance
 from src.models.predict import XGBSignalModel, predict_signal
-from src.utils.io import DATA_RAW, DATA_PROCESSED, DATA_EXPERIMENTS, read_parquet, write_parquet
+from src.utils.io import DATA_EXPERIMENTS, read_parquet, write_parquet
+
+from ui.lib import (
+    TIER_LABELS,
+    PRODUCT_CODES,
+    load_data,
+    load_model,
+    generate_hypotheses,
+    load_cohorts_df,
+    save_cohort,
+    cohort_metrics,
+    get_default_macro,
+)
 
 # ---------------------------------------------------------------------------
 # Wealthsimple palette tokens
@@ -54,14 +64,6 @@ TIER_COLORS = {
     "sticky_family_leader": "#FFD93D",
     "generation_nerd": "#6C5CE7",
     "not_eligible": "#636E72",
-}
-
-# Wealthsimple EQ display names (internal keys unchanged for models/config)
-TIER_LABELS = {
-    "aspiring_affluent": "Momentum Builder ($50k-$100k)",
-    "sticky_family_leader": "Full-Stack Client ($100k-$500k)",
-    "generation_nerd": "Legacy Architect ($500k+)",
-    "not_eligible": "Not Eligible (<$50k)",
 }
 
 SIGNAL_LABELS = {
@@ -124,143 +126,7 @@ def _metric_with_info(metric_key: str, value: str, delta_color: str | None = Non
             st.caption(defn["technical"])
 
 
-# ---------------------------------------------------------------------------
-# Data loading
-# ---------------------------------------------------------------------------
-@st.cache_data
-def load_data():
-    profiles = read_parquet(DATA_RAW / "user_profiles.parquet")
-    txns = read_parquet(DATA_RAW / "transactions.parquet")
-    txns["timestamp"] = pd.to_datetime(txns["timestamp"])
-    features = read_parquet(DATA_PROCESSED / "features.parquet")
-    features = classify_persona_tier(features)
-    return profiles, txns, features
-
-
-@st.cache_resource
-def load_model():
-    model = XGBSignalModel()
-    model.load_models()
-    return model
-
-
-def generate_hypotheses(
-    features: pd.DataFrame,
-    profiles: pd.DataFrame,
-    model: XGBSignalModel,
-    macro: MacroSnapshot,
-):
-    """Run inference, apply macro + feedback adjustments, governance tiers, and nudges."""
-    latest_month = features["month"].max()
-    latest = features[features["month"] == latest_month].copy()
-    eligible = latest[latest["persona_tier"] != "not_eligible"]
-
-    hypotheses = []
-    for _, row in eligible.iterrows():
-        feat_dict = row.to_dict()
-        persona_tier = row["persona_tier"]
-        result = predict_signal(feat_dict, persona_tier, model)
-        if result is None:
-            continue
-
-        result["user_id"] = row["user_id"]
-        profile = profiles[profiles["user_id"] == row["user_id"]]
-        if not profile.empty:
-            result["age"] = int(profile.iloc[0]["age"])
-            result["province"] = profile.iloc[0]["province"]
-
-        product_code = result.get("traceability", {}).get("target_product", {}).get("code", "")
-        product_name = result.get("traceability", {}).get("target_product", {}).get("name", "")
-
-        # Macro adjustment
-        adj_conf, macro_reasons = adjust_confidence_for_macro(
-            result["confidence"], persona_tier, product_code, macro,
-        )
-
-        # Feedback penalty
-        fb_conf, fb_reason = apply_feedback_penalty(
-            adj_conf, persona_tier, result["signal"], product_code,
-        )
-        result["confidence"] = fb_conf
-        result["macro_reasons"] = macro_reasons
-        result["feedback_reason"] = fb_reason
-
-        # Nudge
-        feat_for_nudge = {**feat_dict}
-        if result.get("traceability", {}).get("target_product", {}).get("suggested_amount"):
-            feat_for_nudge["suggested_amount"] = result["traceability"]["target_product"]["suggested_amount"]
-        behavioral_nudge = generate_nudge(persona_tier, result["signal"], feat_for_nudge, product_name)
-        result["nudge"] = generate_composite_reason(behavioral_nudge, macro_reasons, fb_reason)
-
-        # Governance tier
-        enrich_hypothesis_with_governance(result)
-
-        # Guardrails (Outlier Sentinel, Cross-Pollination, Liquidity Stress)
-        apply_guardrails_to_hypothesis(result, feat_dict)
-        # If Life Inflection Alert, demote RRSP Loan: do not suggest to this user
-        if result.get("life_inflection_alert") and product_code == "RRSP_LOAN":
-            continue
-
-        hypotheses.append(result)
-
-    return hypotheses
-
-
-# ---------------------------------------------------------------------------
-# Cohort storage (unchanged)
-# ---------------------------------------------------------------------------
-COHORT_COLUMNS = ["cohort_id", "name", "created_at", "filters"]
-MEMBER_COLUMNS = [
-    "cohort_id", "user_id", "persona_tier", "signal", "confidence",
-    "product_code", "snapshot_month", "age", "province",
-]
-PRODUCT_CODES = ["RRSP_LOAN", "SUMMIT_PORTFOLIO", "AI_RESEARCH_DIRECT_INDEX"]
-
-
-def _load_cohorts_df():
-    path = DATA_EXPERIMENTS / "cohorts.parquet"
-    if not path.exists():
-        return pd.DataFrame(columns=COHORT_COLUMNS)
-    return read_parquet(path)
-
-
-def _load_cohort_members_df():
-    path = DATA_EXPERIMENTS / "cohort_members.parquet"
-    if not path.exists():
-        return pd.DataFrame(columns=MEMBER_COLUMNS)
-    return read_parquet(path)
-
-
-def _save_cohort(cohort_id: str, name: str, filters: dict, members: list):
-    DATA_EXPERIMENTS.mkdir(parents=True, exist_ok=True)
-    cohorts_path = DATA_EXPERIMENTS / "cohorts.parquet"
-    members_path = DATA_EXPERIMENTS / "cohort_members.parquet"
-    cohorts_df = _load_cohorts_df()
-    members_df = _load_cohort_members_df()
-    now = datetime.now(timezone.utc).isoformat()
-    new_cohort = pd.DataFrame([{
-        "cohort_id": cohort_id, "name": name, "created_at": now,
-        "filters": json.dumps(filters),
-    }])
-    cohorts_df = pd.concat([cohorts_df, new_cohort], ignore_index=True)
-    members_df = pd.concat([members_df, pd.DataFrame(members)], ignore_index=True)
-    write_parquet(cohorts_df, cohorts_path)
-    write_parquet(members_df, members_path)
-
-
-def _cohort_metrics(cohort_id: str, decisions: dict):
-    members = _load_cohort_members_df()
-    members = members[members["cohort_id"] == cohort_id]
-    if members.empty:
-        return {"size": 0, "approved": 0, "rejected": 0, "pending": 0, "avg_confidence": 0.0}
-    approved = sum(1 for uid in members["user_id"] if decisions.get(uid, {}).get("action") == "approved")
-    rejected = sum(1 for uid in members["user_id"] if decisions.get(uid, {}).get("action") == "rejected")
-    pending_c = sum(1 for uid in members["user_id"] if decisions.get(uid, {}).get("action") == "pending")
-    return {
-        "size": len(members), "approved": approved, "rejected": rejected,
-        "pending": pending_c, "avg_confidence": round(members["confidence"].mean(), 3),
-        "approval_rate": round(approved / max(approved + rejected, 1), 3),
-    }
+# Cohort storage: load_cohorts_df, save_cohort, cohort_metrics from ui.lib
 
 
 # ---------------------------------------------------------------------------
@@ -382,97 +248,72 @@ def _inject_ws_theme():
 
 def main():
     _inject_ws_theme()
+    if "macro" not in st.session_state:
+        st.session_state.macro = get_default_macro()
+
     profiles, txns, features = load_data()
     model = load_model()
-    # What-If Macro Simulator: sliders drive scenario
-    st.sidebar.divider()
-    st.sidebar.markdown("**Scenario Planning**")
-    boc_rate = st.sidebar.slider("BoC Prime Rate (%)", 3.0, 8.0, 4.25, 0.25)
-    vix_val = st.sidebar.slider("Market Volatility (VIX)", 10, 40, 18, 1)
-    macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix_val)
 
     # ---- Sidebar ----
     st.sidebar.title("W Pulse")
     st.sidebar.caption("Financial Curator Dashboard")
     st.sidebar.divider()
 
-    tier_filter = st.sidebar.multiselect(
-        "Filter by Persona Tier",
-        options=[k for k in TIER_LABELS if k != "not_eligible"],
-        format_func=lambda x: TIER_LABELS[x],
-        default=["aspiring_affluent", "sticky_family_leader", "generation_nerd"],
-    )
-    confidence_min = st.sidebar.slider("Min Confidence", 0.0, 1.0, 0.5, 0.05)
+    # Decision Summary & Impact (expander)
+    with st.sidebar.expander("Decision Summary & Impact", expanded=True):
+        approved_decisions = [v for v in st.session_state.decisions.values() if v.get("action") == "approved"]
+        if "aum_unlocked_today" not in st.session_state:
+            st.session_state.aum_unlocked_today = 0.0
+        st.session_state.aum_unlocked_today = len(approved_decisions) * 18000.0  # placeholder
+        st.metric("AUM Unlocked (session)", f"${st.session_state.aum_unlocked_today:,.0f}")
+        st.metric("Approvals (session)", len(approved_decisions))
+        st.progress(min(1.0, len(approved_decisions) / 50.0))
+        st.caption("Progress toward daily review goal (50)")
+        st.divider()
+        n_approved = sum(1 for v in st.session_state.decisions.values() if v["action"] == "approved")
+        n_rejected = sum(1 for v in st.session_state.decisions.values() if v["action"] == "rejected")
+        n_pending = sum(1 for v in st.session_state.decisions.values() if v["action"] == "pending")
+        st.markdown("**Decision Summary**")
+        st.metric("Approved", n_approved)
+        st.metric("Rejected", n_rejected)
+        st.metric("Pending", n_pending)
+        fb_stats = get_feedback_stats()
+        if fb_stats["total"] > 0:
+            st.divider()
+            st.markdown("**Active Learning**")
+            st.caption(f"Feedback records: {fb_stats['total']}  |  Approval rate: {fb_stats['approval_rate']:.0%}")
 
-    st.sidebar.divider()
-    st.sidebar.markdown("**Decision Summary**")
-    n_approved = sum(1 for v in st.session_state.decisions.values() if v["action"] == "approved")
-    n_rejected = sum(1 for v in st.session_state.decisions.values() if v["action"] == "rejected")
-    n_pending = sum(1 for v in st.session_state.decisions.values() if v["action"] == "pending")
-    st.sidebar.metric("Approved", n_approved)
-    st.sidebar.metric("Rejected", n_rejected)
-    st.sidebar.metric("Pending", n_pending)
+    # Filters (expander)
+    with st.sidebar.expander("Filters", expanded=True):
+        tier_filter = st.multiselect(
+            "Filter by Persona Tier",
+            options=[k for k in TIER_LABELS if k != "not_eligible"],
+            format_func=lambda x: TIER_LABELS[x],
+            default=["aspiring_affluent", "sticky_family_leader", "generation_nerd"],
+        )
+        confidence_min = st.slider("Min Confidence", 0.0, 1.0, 0.5, 0.05)
 
-    # Feedback stats
-    fb_stats = get_feedback_stats()
-    if fb_stats["total"] > 0:
-        st.sidebar.divider()
-        st.sidebar.markdown("**Active Learning**")
-        st.sidebar.caption(f"Feedback records: {fb_stats['total']}  |  Approval rate: {fb_stats['approval_rate']:.0%}")
+    # Scenario Planning (expander) — persist macro to session_state
+    with st.sidebar.expander("Scenario Planning", expanded=False):
+        boc_rate = st.slider("BoC Prime Rate (%)", 3.0, 8.0, float(st.session_state.macro.boc_prime_rate), 0.25, key="sb_boc")
+        vix_val = st.slider("Market Volatility (VIX)", 10, 40, int(st.session_state.macro.vix), 1, key="sb_vix")
+        st.session_state.macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix_val)
 
-    # Cohort builder (sidebar)
-    st.sidebar.divider()
-    st.sidebar.markdown("**Cohort Builder**")
-    cohort_name = st.sidebar.text_input("Cohort name", placeholder="e.g. High-conf Aspiring Affluent")
-    cohort_tiers = st.sidebar.multiselect(
-        "Persona tiers (cohort)",
-        options=[k for k in TIER_LABELS if k != "not_eligible"],
-        default=[k for k in TIER_LABELS if k != "not_eligible"],
-        format_func=lambda x: TIER_LABELS[x],
-        key="cb_tiers",
-    )
-    conf_low, conf_high = st.sidebar.slider("Confidence range (cohort)", 0.0, 1.0, (0.5, 1.0), 0.05, key="cb_conf")
-    cohort_products = st.sidebar.multiselect("Products (cohort)", options=PRODUCT_CODES, default=PRODUCT_CODES, key="cb_prod")
+    # Cohort Builder (expander) — navigate to page
+    with st.sidebar.expander("Cohort Builder", expanded=False):
+        if st.button("Open Cohort Builder"):
+            st.switch_page("ui/pages/1_cohort_builder.py")
 
-    # Generate hypotheses
+    macro = st.session_state.macro
     hypotheses = generate_hypotheses(features, profiles, model, macro)
     filtered = [
         h for h in hypotheses
         if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min
     ]
-    # What-If: hide Retirement Accelerator when BoC rate > 6%
     if macro.boc_prime_rate > 6.0:
         filtered = [h for h in filtered if h["traceability"]["target_product"]["code"] != "RRSP_LOAN"]
         if len(filtered) < len([h for h in hypotheses if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min]):
             st.sidebar.warning("BoC rate > 6%: Retirement Accelerator suggestions hidden (too risky).")
-
-    if st.sidebar.button("Create Cohort"):
-        subset = [
-            h for h in filtered
-            if h["persona_tier"] in cohort_tiers
-            and h["traceability"]["target_product"]["code"] in cohort_products
-            and conf_low <= h["confidence"] <= conf_high
-        ]
-        if not cohort_name.strip():
-            st.sidebar.warning("Enter a cohort name.")
-        elif not subset:
-            st.sidebar.warning("No hypotheses match filters.")
-        else:
-            cid = str(uuid.uuid4())
-            latest_month = features["month"].max() if not features.empty else ""
-            _save_cohort(cid, cohort_name.strip(), {
-                "persona_tiers": cohort_tiers,
-                "confidence_range": [conf_low, conf_high],
-                "products": cohort_products,
-            }, [
-                {
-                    "cohort_id": cid, "user_id": h["user_id"], "persona_tier": h["persona_tier"],
-                    "signal": h["signal"], "confidence": float(h["confidence"]),
-                    "product_code": h["traceability"]["target_product"]["code"],
-                    "snapshot_month": str(latest_month), "age": h.get("age"), "province": h.get("province"),
-                } for h in subset
-            ])
-            st.sidebar.success(f"Cohort '{cohort_name.strip()}' created ({len(subset)} members).")
 
     # ---- Main content wrapper ----
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
@@ -480,23 +321,6 @@ def main():
     # ---- Header ----
     st.title("Wealthsimple Pulse")
     st.caption("AI-Staged Product Recommendations -- Human-in-the-Loop Review")
-
-    # ---- Daily Impact ----
-    with st.container():
-        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
-        approved_decisions = [v for v in st.session_state.decisions.values() if v.get("action") == "approved"]
-        if "aum_unlocked_today" not in st.session_state:
-            st.session_state.aum_unlocked_today = 0.0
-        st.session_state.aum_unlocked_today = len(approved_decisions) * 18000.0  # placeholder
-        impact_col1, impact_col2, impact_col3 = st.columns(3)
-        with impact_col1:
-            st.metric("AUM Unlocked (session)", f"${st.session_state.aum_unlocked_today:,.0f}")
-        with impact_col2:
-            st.metric("Approvals (session)", len(approved_decisions))
-        with impact_col3:
-            st.progress(min(1.0, len(approved_decisions) / 50.0))
-            st.caption("Progress toward daily review goal (50)")
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # ---- Macro Dashboard ----
     with st.container():
@@ -521,25 +345,6 @@ def main():
         col2.metric("Filtered Queue", len(filtered))
         col3.metric("Pending Review", len(filtered) - sum(1 for h in filtered if h["user_id"] in st.session_state.decisions))
         col4.metric("Avg Confidence", f"{sum(h['confidence'] for h in filtered) / max(len(filtered), 1):.2f}")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # Cohort explorer
-    with st.container():
-        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
-        with st.expander("Cohort Explorer", expanded=False):
-            cohorts_df = _load_cohorts_df()
-            if cohorts_df.empty:
-                st.caption("No cohorts yet.")
-            else:
-                selected_name = st.selectbox("Select cohort", options=cohorts_df["name"].tolist())
-                if selected_name:
-                    crow = cohorts_df[cohorts_df["name"] == selected_name].iloc[0]
-                    metrics = _cohort_metrics(crow["cohort_id"], st.session_state.decisions)
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("Size", metrics["size"])
-                    m2.metric("Approved", metrics["approved"])
-                    m3.metric("Rejected", metrics["rejected"])
-                    m4.metric("Pending", metrics["pending"])
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ---- Batch Review by Intent ----
@@ -576,41 +381,6 @@ def main():
                         st.rerun()
                 st.divider()
             st.markdown("</div>", unsafe_allow_html=True)
-
-    # ---- Cluster Map (Savings Velocity vs Runway) ----
-    with st.container():
-        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
-        with st.expander("Cluster Map — Custom Cohort", expanded=False):
-            if filtered:
-                map_data = []
-                for h in filtered:
-                    sb = h.get("traceability", {}).get("spending_buffer", {})
-                    map_data.append({
-                        "user_id": h["user_id"][:8],
-                        "Spend Velocity (30d)": sb.get("monthly_burn_rate", 0),
-                        "Months Runway": sb.get("months_of_runway", 0),
-                        "Persona": TIER_LABELS.get(h["persona_tier"], h["persona_tier"]),
-                    })
-                map_df = pd.DataFrame(map_data)
-                if not map_df.empty:
-                    fig = px.scatter(
-                        map_df,
-                        x="Spend Velocity (30d)",
-                        y="Months Runway",
-                        color="Persona",
-                        hover_data=["user_id"],
-                        title="Users by Spend Velocity vs Liquidity Runway",
-                    )
-                    fig.update_traces(marker=dict(size=7, line=dict(width=0)))
-                    fig.update_layout(showlegend=True, height=360)
-                    fig.update_xaxes(showgrid=False)
-                    fig.update_yaxes(showgrid=False, zeroline=False)
-                    st.plotly_chart(fig, use_container_width=True)
-                    vel_min, vel_max = st.slider("Spend velocity range", 0.0, float(map_df["Spend Velocity (30d)"].max() + 1), (0.0, float(map_df["Spend Velocity (30d)"].max() + 1)))
-                    run_min, run_max = st.slider("Runway range (months)", 0.0, 24.0, (0.0, 24.0))
-                    custom = [h for h in filtered if vel_min <= h["traceability"]["spending_buffer"]["monthly_burn_rate"] <= vel_max and run_min <= h["traceability"]["spending_buffer"]["months_of_runway"] <= run_max]
-                    st.caption(f"Custom cohort: {len(custom)} users in selected range.")
-        st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
     st.markdown("</div>", unsafe_allow_html=True)
@@ -770,6 +540,18 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
     default_nudge = hypothesis.get("nudge", "")
     edited_nudge = st.text_area("Edit message (optional)", value=default_nudge, height=120, key=f"nudge_edit_{user_id}")
     st.caption("You can edit the message above before approving. Approve & Send records your decision and uses this copy.")
+
+    # Scenario Planning (shared with sidebar / Cohort Builder)
+    with st.expander("Scenario Planning", expanded=False):
+        macro = st.session_state.get("macro")
+        if macro is None:
+            from ui.lib import get_default_macro
+            st.session_state.macro = get_default_macro()
+            macro = st.session_state.macro
+        boc_rate = st.slider("BoC Prime Rate (%)", 3.0, 8.0, float(macro.boc_prime_rate), 0.25, key=f"detail_boc_{user_id}")
+        vix_val = st.slider("Market Volatility (VIX)", 10, 40, int(macro.vix), 1, key=f"detail_vix_{user_id}")
+        st.session_state.macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix_val)
+        st.caption(f"Current scenario: BoC {boc_rate}%, VIX {vix_val}. Confidence was computed using the active scenario.")
 
     st.divider()
 

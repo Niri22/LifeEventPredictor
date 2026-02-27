@@ -101,6 +101,10 @@ See [src/classifier/guardrails.py](src/classifier/guardrails.py).
 - **POST /batch/approve:** Request body `{ "items": [ { "user_id", "persona_tier", "signal", "product_code", "confidence", "governance_tier" } ], "action": "approved" }`. Records feedback for each item.
 - **Intent cohorts:** Premium Leapfrog, Summit Onboarding, Bank-Replacement Lead. Built by [src/classifier/cohort_engine.py](src/classifier/cohort_engine.py). The UI shows Batch Review cards with "Why" and a Global Approve button.
 
+### Dashboard (multi-page)
+
+The Streamlit app is multi-page: the main **Dashboard** (home) and a **Cohort Builder** page (sidebar link or "Open Cohort Builder" in the sidebar). The sidebar includes expandable sections: **Decision Summary & Impact** (AUM unlocked, approvals, progress, decision counts, active learning stats), **Filters** (persona tier, min confidence), **Scenario Planning** (BoC rate, VIX), and **Cohort Builder** (navigate to the dedicated page). **Scenario Planning** is available in three places: the main sidebar, the Cohort Builder page, and each individual client traceability panel; the chosen scenario (BoC, VIX) is stored in session state and used for hypothesis confidence.
+
 ## Quick Start
 
 ```bash
@@ -156,6 +160,7 @@ src/classifier/       -- Rule-based persona tier classifier
 src/models/           -- Per-persona XGBoost signal detectors
 api/                  -- FastAPI orchestrator with persona-routed responses
 ui/                   -- Streamlit curator dashboard with traceability panels
+ui/pages/             -- Cohort Builder page (multi-page app)
 config/               -- Settings and thresholds (settings.yaml)
 tests/                -- Test suite
 ```
