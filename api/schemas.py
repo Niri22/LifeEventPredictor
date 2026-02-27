@@ -132,6 +132,25 @@ class FeedbackResponse(BaseModel):
     total_feedback: int = 0
 
 
+class BatchApproveItem(BaseModel):
+    user_id: str
+    persona_tier: str
+    signal: str
+    product_code: str
+    confidence: float
+    governance_tier: str = ""
+
+
+class BatchApproveRequest(BaseModel):
+    items: list[BatchApproveItem]
+    action: str = Field(default="approved", description="approved | rejected | pending")
+
+
+class BatchApproveResponse(BaseModel):
+    approved_count: int = 0
+    status: str = "ok"
+
+
 class HealthResponse(BaseModel):
     status: str = "healthy"
     models_loaded: list[str] = []

@@ -15,17 +15,29 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
 from src.api.feedback import get_feedback_stats, record_feedback, apply_feedback_penalty
 from src.api.macro_agent import MacroSnapshot, adjust_confidence_for_macro, fetch_macro_snapshot
 from src.classifier.persona_classifier import classify_persona_tier
+from src.classifier.guardrails import apply_guardrails_to_hypothesis
+from src.classifier.cohort_engine import build_intent_cohorts
 from src.features.nudges import generate_composite_reason, generate_nudge
 from src.features.pipeline import build_features
 from src.models.governance import enrich_hypothesis_with_governance
 from src.models.predict import XGBSignalModel, predict_signal
 from src.utils.io import DATA_RAW, DATA_PROCESSED, DATA_EXPERIMENTS, read_parquet, write_parquet
+
+# ---------------------------------------------------------------------------
+# Wealthsimple palette tokens
+# ---------------------------------------------------------------------------
+COIN_WHITE = "#FFFFFF"
+MIDNIGHT = "#000000"
+WS_GOLD = "#FFB547"
+SAGE_GREEN = "#E8F0E8"
+STONE_GREY = "#F2F2F2"
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -44,10 +56,11 @@ TIER_COLORS = {
     "not_eligible": "#636E72",
 }
 
+# Wealthsimple EQ display names (internal keys unchanged for models/config)
 TIER_LABELS = {
-    "aspiring_affluent": "Aspiring Affluent ($50k-$100k)",
-    "sticky_family_leader": "Sticky Family Leader ($100k-$500k)",
-    "generation_nerd": "Generation Nerd ($500k+)",
+    "aspiring_affluent": "Momentum Builder ($50k-$100k)",
+    "sticky_family_leader": "Full-Stack Client ($100k-$500k)",
+    "generation_nerd": "Legacy Architect ($500k+)",
     "not_eligible": "Not Eligible (<$50k)",
 }
 
@@ -182,6 +195,12 @@ def generate_hypotheses(
         # Governance tier
         enrich_hypothesis_with_governance(result)
 
+        # Guardrails (Outlier Sentinel, Cross-Pollination, Liquidity Stress)
+        apply_guardrails_to_hypothesis(result, feat_dict)
+        # If Life Inflection Alert, demote RRSP Loan: do not suggest to this user
+        if result.get("life_inflection_alert") and product_code == "RRSP_LOAN":
+            continue
+
         hypotheses.append(result)
 
     return hypotheses
@@ -254,10 +273,123 @@ if "decisions" not in st.session_state:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+def _inject_ws_theme():
+    """Inject global CSS for Wealthsimple-like visual styling."""
+    st.markdown(
+        f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap');
+
+    :root {{
+        --ws-midnight: {MIDNIGHT};
+        --ws-off-white: {COIN_WHITE};
+        --ws-gold: {WS_GOLD};
+        --ws-sage: {SAGE_GREEN};
+        --ws-stone: {STONE_GREY};
+        --ws-radius: 8px;
+    }}
+
+    /* App shell */
+    .stApp {{
+        background-color: var(--ws-off-white);
+        color: var(--ws-midnight);
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }}
+    section[data-testid="stSidebar"] > div {{
+        background-color: var(--ws-stone);
+    }}
+
+    /* Typography */
+    h1, h2 {{
+        font-family: 'Playfair Display', 'Lora', serif;
+        letter-spacing: 0.01em;
+    }}
+    h3, h4, h5, h6, .stMarkdown, .stDataFrame, .stMetric, .stButton > button {{
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }}
+
+    /* Layout helpers */
+    .ws-main {{
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.5rem 2rem 2.5rem 2rem;
+    }}
+    .ws-card {{
+        background-color: var(--ws-off-white);
+        border-radius: var(--ws-radius);
+        border: 1px solid var(--ws-stone);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+    }}
+
+    /* Buttons */
+    .stButton > button {{
+        border-radius: var(--ws-radius);
+        border: 1px solid transparent;
+        font-weight: 500;
+        padding: 0.35rem 0.9rem;
+        transition: all 0.15s ease-out;
+    }}
+    .stButton > button:hover {{
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }}
+
+    .ws-btn-primary button {{
+        background-color: var(--ws-midnight);
+        color: var(--ws-off-white);
+    }}
+    .ws-btn-primary button:hover {{
+        background-color: #111111;
+    }}
+
+    .ws-btn-danger button {{
+        background-color: #FDEDEC;
+        color: #C0392B;
+        border-color: #F5B7B1;
+    }}
+    .ws-btn-danger button:hover {{
+        background-color: #FADBD8;
+    }}
+
+    .ws-btn-secondary button {{
+        background-color: var(--ws-stone);
+        color: var(--ws-midnight);
+    }}
+    .ws-btn-secondary button:hover {{
+        background-color: #e6e6e6;
+    }}
+
+    /* Tables and metrics */
+    div[data-testid="stTable"], div[data-testid="stDataFrame"] table {{
+        border-radius: var(--ws-radius);
+        overflow: hidden;
+    }}
+    .stMetric > div:first-child {{
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }}
+    .stMetric {{
+        padding: 0.5rem 0;
+    }}
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
+
 def main():
+    _inject_ws_theme()
     profiles, txns, features = load_data()
     model = load_model()
-    macro = fetch_macro_snapshot()
+    # What-If Macro Simulator: sliders drive scenario
+    st.sidebar.divider()
+    st.sidebar.markdown("**Scenario Planning**")
+    boc_rate = st.sidebar.slider("BoC Prime Rate (%)", 3.0, 8.0, 4.25, 0.25)
+    vix_val = st.sidebar.slider("Market Volatility (VIX)", 10, 40, 18, 1)
+    macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix_val)
 
     # ---- Sidebar ----
     st.sidebar.title("W Pulse")
@@ -308,6 +440,11 @@ def main():
         h for h in hypotheses
         if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min
     ]
+    # What-If: hide Retirement Accelerator when BoC rate > 6%
+    if macro.boc_prime_rate > 6.0:
+        filtered = [h for h in filtered if h["traceability"]["target_product"]["code"] != "RRSP_LOAN"]
+        if len(filtered) < len([h for h in hypotheses if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min]):
+            st.sidebar.warning("BoC rate > 6%: Retirement Accelerator suggestions hidden (too risky).")
 
     if st.sidebar.button("Create Cohort"):
         subset = [
@@ -337,46 +474,146 @@ def main():
             ])
             st.sidebar.success(f"Cohort '{cohort_name.strip()}' created ({len(subset)} members).")
 
+    # ---- Main content wrapper ----
+    st.markdown('<div class="ws-main">', unsafe_allow_html=True)
+
     # ---- Header ----
     st.title("Wealthsimple Pulse")
     st.caption("AI-Staged Product Recommendations -- Human-in-the-Loop Review")
 
+    # ---- Daily Impact ----
+    with st.container():
+        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
+        approved_decisions = [v for v in st.session_state.decisions.values() if v.get("action") == "approved"]
+        if "aum_unlocked_today" not in st.session_state:
+            st.session_state.aum_unlocked_today = 0.0
+        st.session_state.aum_unlocked_today = len(approved_decisions) * 18000.0  # placeholder
+        impact_col1, impact_col2, impact_col3 = st.columns(3)
+        with impact_col1:
+            st.metric("AUM Unlocked (session)", f"${st.session_state.aum_unlocked_today:,.0f}")
+        with impact_col2:
+            st.metric("Approvals (session)", len(approved_decisions))
+        with impact_col3:
+            st.progress(min(1.0, len(approved_decisions) / 50.0))
+            st.caption("Progress toward daily review goal (50)")
+        st.markdown("</div>", unsafe_allow_html=True)
+
     # ---- Macro Dashboard ----
-    with st.expander("Macro Dashboard", expanded=True):
-        mc1, mc2, mc3, mc4 = st.columns(4)
-        mc1.metric("BoC Prime Rate", f"{macro.boc_prime_rate:.2f}%",
-                    delta="High" if macro.rates_high else "Normal",
-                    delta_color="inverse" if macro.rates_high else "normal")
-        mc2.metric("VIX", f"{macro.vix:.1f}",
-                    delta="Elevated" if macro.market_volatile else "Normal",
-                    delta_color="inverse" if macro.market_volatile else "normal")
-        mc3.metric("TSX Volatility", f"{macro.tsx_volatility:.1f}%")
-        mc4.metric("Snapshot", macro.timestamp[:10])
+    with st.container():
+        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
+        with st.expander("Macro Dashboard", expanded=True):
+            mc1, mc2, mc3, mc4 = st.columns(4)
+            mc1.metric("BoC Prime Rate", f"{macro.boc_prime_rate:.2f}%",
+                        delta="High" if macro.rates_high else "Normal",
+                        delta_color="inverse" if macro.rates_high else "normal")
+            mc2.metric("VIX", f"{macro.vix:.1f}",
+                        delta="Elevated" if macro.market_volatile else "Normal",
+                        delta_color="inverse" if macro.market_volatile else "normal")
+            mc3.metric("TSX Volatility", f"{macro.tsx_volatility:.1f}%")
+            mc4.metric("Snapshot", macro.timestamp[:10])
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # Summary metrics
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Signals", len(hypotheses))
-    col2.metric("Filtered Queue", len(filtered))
-    col3.metric("Pending Review", len(filtered) - sum(1 for h in filtered if h["user_id"] in st.session_state.decisions))
-    col4.metric("Avg Confidence", f"{sum(h['confidence'] for h in filtered) / max(len(filtered), 1):.2f}")
+    with st.container():
+        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Signals", len(hypotheses))
+        col2.metric("Filtered Queue", len(filtered))
+        col3.metric("Pending Review", len(filtered) - sum(1 for h in filtered if h["user_id"] in st.session_state.decisions))
+        col4.metric("Avg Confidence", f"{sum(h['confidence'] for h in filtered) / max(len(filtered), 1):.2f}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # Cohort explorer
-    with st.expander("Cohort Explorer", expanded=False):
-        cohorts_df = _load_cohorts_df()
-        if cohorts_df.empty:
-            st.caption("No cohorts yet.")
-        else:
-            selected_name = st.selectbox("Select cohort", options=cohorts_df["name"].tolist())
-            if selected_name:
-                crow = cohorts_df[cohorts_df["name"] == selected_name].iloc[0]
-                metrics = _cohort_metrics(crow["cohort_id"], st.session_state.decisions)
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Size", metrics["size"])
-                m2.metric("Approved", metrics["approved"])
-                m3.metric("Rejected", metrics["rejected"])
-                m4.metric("Pending", metrics["pending"])
+    with st.container():
+        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
+        with st.expander("Cohort Explorer", expanded=False):
+            cohorts_df = _load_cohorts_df()
+            if cohorts_df.empty:
+                st.caption("No cohorts yet.")
+            else:
+                selected_name = st.selectbox("Select cohort", options=cohorts_df["name"].tolist())
+                if selected_name:
+                    crow = cohorts_df[cohorts_df["name"] == selected_name].iloc[0]
+                    metrics = _cohort_metrics(crow["cohort_id"], st.session_state.decisions)
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Size", metrics["size"])
+                    m2.metric("Approved", metrics["approved"])
+                    m3.metric("Rejected", metrics["rejected"])
+                    m4.metric("Pending", metrics["pending"])
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---- Batch Review by Intent ----
+    intent_cohorts = build_intent_cohorts(filtered)
+    if intent_cohorts:
+        with st.container():
+            st.markdown('<div class="ws-card">', unsafe_allow_html=True)
+            st.subheader("Batch Review by Intent")
+            for cohort in intent_cohorts:
+                c1, c2 = st.columns([3, 1])
+                with c1:
+                    st.markdown(f"**{cohort['name']}** ({len(cohort['user_ids'])} members)")
+                    st.caption(cohort["why_summary"])
+                    if cohort.get("potential_aum_growth") is not None:
+                        st.caption(f"Potential AUM growth: ${cohort['potential_aum_growth']:,.0f}")
+                with c2:
+                    undecided = [u for u in cohort["user_ids"] if u not in st.session_state.decisions]
+                    if undecided and st.button(f"Global Approve ({len(undecided)})", key=f"global_approve_{cohort['intent_id']}"):
+                        now = datetime.now(timezone.utc).isoformat()
+                        for h in cohort["hypotheses"]:
+                            if h["user_id"] in undecided:
+                                st.session_state.decisions[h["user_id"]] = {
+                                    "action": "approved", "timestamp": now,
+                                    "signal": h["signal"], "persona_tier": h["persona_tier"],
+                                    "confidence": h["confidence"],
+                                }
+                                record_feedback(
+                                    h["user_id"], h["persona_tier"], h["signal"],
+                                    h["traceability"]["target_product"]["code"],
+                                    h["confidence"], h.get("governance", {}).get("tier", ""), "approved",
+                                    macro_reasons="; ".join(h.get("macro_reasons", [])),
+                                )
+                        st.success(f"Approved {len(undecided)} recommendations.")
+                        st.rerun()
+                st.divider()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    # ---- Cluster Map (Savings Velocity vs Runway) ----
+    with st.container():
+        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
+        with st.expander("Cluster Map — Custom Cohort", expanded=False):
+            if filtered:
+                map_data = []
+                for h in filtered:
+                    sb = h.get("traceability", {}).get("spending_buffer", {})
+                    map_data.append({
+                        "user_id": h["user_id"][:8],
+                        "Spend Velocity (30d)": sb.get("monthly_burn_rate", 0),
+                        "Months Runway": sb.get("months_of_runway", 0),
+                        "Persona": TIER_LABELS.get(h["persona_tier"], h["persona_tier"]),
+                    })
+                map_df = pd.DataFrame(map_data)
+                if not map_df.empty:
+                    fig = px.scatter(
+                        map_df,
+                        x="Spend Velocity (30d)",
+                        y="Months Runway",
+                        color="Persona",
+                        hover_data=["user_id"],
+                        title="Users by Spend Velocity vs Liquidity Runway",
+                    )
+                    fig.update_traces(marker=dict(size=7, line=dict(width=0)))
+                    fig.update_layout(showlegend=True, height=360)
+                    fig.update_xaxes(showgrid=False)
+                    fig.update_yaxes(showgrid=False, zeroline=False)
+                    st.plotly_chart(fig, use_container_width=True)
+                    vel_min, vel_max = st.slider("Spend velocity range", 0.0, float(map_df["Spend Velocity (30d)"].max() + 1), (0.0, float(map_df["Spend Velocity (30d)"].max() + 1)))
+                    run_min, run_max = st.slider("Runway range (months)", 0.0, 24.0, (0.0, 24.0))
+                    custom = [h for h in filtered if vel_min <= h["traceability"]["spending_buffer"]["monthly_burn_rate"] <= vel_max and run_min <= h["traceability"]["spending_buffer"]["months_of_runway"] <= run_max]
+                    st.caption(f"Custom cohort: {len(custom)} users in selected range.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if not filtered:
         st.info("No signals match your filter criteria.")
@@ -388,18 +625,21 @@ def main():
     green = [h for h in filtered if h.get("governance", {}).get("tier") == "green"]
 
     # ---- Tiered Queue Tabs ----
-    tab_red, tab_amber, tab_green = st.tabs([
-        f"🔴 Red -- Manual Review ({len(red)})",
-        f"🟡 Amber -- Batch Review ({len(amber)})",
-        f"🟢 Green -- Auto-Approve ({len(green)})",
-    ])
+    with st.container():
+        st.markdown('<div class="ws-card">', unsafe_allow_html=True)
+        tab_red, tab_amber, tab_green = st.tabs([
+            f"🔴 Red -- Manual Review ({len(red)})",
+            f"🟡 Amber -- Batch Review ({len(amber)})",
+            f"🟢 Green -- Auto-Approve ({len(green)})",
+        ])
 
-    with tab_red:
-        _render_queue(red, "red", features)
-    with tab_amber:
-        _render_amber_queue(amber, features)
-    with tab_green:
-        _render_queue(green, "green", features)
+        with tab_red:
+            _render_queue(red, "red", features)
+        with tab_amber:
+            _render_amber_queue(amber, features)
+        with tab_green:
+            _render_queue(green, "green", features)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -410,10 +650,13 @@ def _build_queue_df(items: list) -> pd.DataFrame:
     for i, h in enumerate(items):
         status = st.session_state.decisions.get(h["user_id"], {}).get("action", "pending")
         gov = h.get("governance", {})
+        dist = h.get("distance_to_upgrade") or {}
+        path_label = dist.get("cohort_label", "")
         rows.append({
             "idx": i,
             "User ID": h["user_id"][:12] + "...",
             "Tier": TIER_LABELS.get(h["persona_tier"], h["persona_tier"]),
+            "Path": path_label,
             "Signal": SIGNAL_LABELS.get(h["signal"], h["signal"]),
             "Confidence": h["confidence"],
             "Gov": f"{GOV_TIER_ICONS.get(gov.get('tier', ''), '')} {gov.get('tier', '').upper()}",
@@ -513,10 +756,20 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
         icon = GOV_TIER_ICONS.get(gov.get("tier", ""), "")
         st.markdown(f"{icon} **{gov.get('label', 'Unknown')}**")
         st.caption(gov.get("reason", ""))
+    dist = hypothesis.get("distance_to_upgrade") or {}
+    if dist.get("cohort_label"):
+        st.caption(f"**Status path:** {dist.get('cohort_label')} — Gap: ${dist.get('gap_dollars', 0):,.0f} to {dist.get('next_milestone_name', '')}")
 
     # Rationale (Nudge = Behavioral + Macro + Feedback)
     with st.expander("Recommendation Rationale", expanded=True):
         st.markdown(hypothesis.get("nudge", "No rationale available."))
+
+    # Nudge Editor: tone and edit before send
+    st.markdown("**Nudge Preview**")
+    nudge_tone = st.radio("Tone", ["Professional", "Casual"], horizontal=True, key=f"nudge_tone_{user_id}")
+    default_nudge = hypothesis.get("nudge", "")
+    edited_nudge = st.text_area("Edit message (optional)", value=default_nudge, height=120, key=f"nudge_edit_{user_id}")
+    st.caption("You can edit the message above before approving. Approve & Send records your decision and uses this copy.")
 
     st.divider()
 
@@ -561,21 +814,62 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
         chart1, chart2 = st.columns(2)
         with chart1:
             fig = go.Figure()
+            x_vals = user_features["month"].astype(str)
+            y_aua = user_features["aua_current"]
             fig.add_trace(go.Scatter(
-                x=user_features["month"].astype(str), y=user_features["aua_current"],
-                mode="lines+markers", name="AUA", line=dict(color="#6C5CE7", width=2),
+                x=x_vals,
+                y=y_aua,
+                mode="lines",
+                name="AUA",
+                line=dict(color=MIDNIGHT, width=1.5),
             ))
-            fig.add_hline(y=100_000, line_dash="dash", line_color="orange", annotation_text="Premium ($100k)")
-            fig.add_hline(y=500_000, line_dash="dash", line_color="red", annotation_text="Generation ($500k)")
-            fig.update_layout(title="AUA Over Time", xaxis_title="Month", yaxis_title="AUA (CAD)", height=350)
+            # current value dot
+            fig.add_trace(go.Scatter(
+                x=[x_vals.iloc[-1]],
+                y=[y_aua.iloc[-1]],
+                mode="markers",
+                marker=dict(color=WS_GOLD, size=8),
+                name="Current",
+            ))
+            fig.add_hline(y=100_000, line_dash="dash", line_color=WS_GOLD, annotation_text="Premium ($100k)")
+            fig.add_hline(y=500_000, line_dash="dash", line_color="#999999", annotation_text="Generation ($500k)")
+            fig.update_layout(
+                title="AUA Over Time",
+                xaxis_title="Month",
+                yaxis_title="AUA (CAD)",
+                height=350,
+                showlegend=False,
+            )
+            fig.update_xaxes(showgrid=False)
+            fig.update_yaxes(showgrid=False, zeroline=False)
             st.plotly_chart(fig, use_container_width=True)
         with chart2:
             fig2 = go.Figure()
+            x_vals2 = user_features["month"].astype(str)
+            y_spend = user_features["spend_velocity_30d"]
             fig2.add_trace(go.Scatter(
-                x=user_features["month"].astype(str), y=user_features["spend_velocity_30d"],
-                mode="lines+markers", name="Spend Velocity", line=dict(color="#FF6B6B", width=2),
+                x=x_vals2,
+                y=y_spend,
+                mode="lines",
+                name="Spend Velocity",
+                line=dict(color=MIDNIGHT, width=1.5),
             ))
-            fig2.update_layout(title="Spend Velocity (30d)", xaxis_title="Month", yaxis_title="CAD", height=350)
+            fig2.add_trace(go.Scatter(
+                x=[x_vals2.iloc[-1]],
+                y=[y_spend.iloc[-1]],
+                mode="markers",
+                marker=dict(color=WS_GOLD, size=8),
+                name="Current",
+            ))
+            fig2.update_layout(
+                title="Spend Velocity (30d)",
+                xaxis_title="Month",
+                yaxis_title="CAD",
+                height=350,
+                showlegend=False,
+            )
+            fig2.update_xaxes(showgrid=False)
+            fig2.update_yaxes(showgrid=False, zeroline=False)
             st.plotly_chart(fig2, use_container_width=True)
 
     # ---- Curator Decision ----
@@ -588,7 +882,8 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
     reject_col, pending_col, approve_col, reason_col = st.columns([1, 1, 1, 2])
 
     with reject_col:
-        st.markdown('<span style="color: #e74c3c; font-weight: bold;">Reject</span>', unsafe_allow_html=True)
+        st.markdown('<span style="color: #C0392B; font-weight: bold;">Reject</span>', unsafe_allow_html=True)
+        st.markdown('<div class="ws-btn-danger">', unsafe_allow_html=True)
         if st.button("Reject", type="secondary", use_container_width=True, disabled=is_locked, key=f"rej_{user_id}"):
             st.session_state.decisions[user_id] = {
                 "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -602,9 +897,11 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
                 "rejected", macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
             )
             st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with pending_col:
         st.markdown("**Pending / Reconsider**")
+        st.markdown('<div class="ws-btn-secondary">', unsafe_allow_html=True)
         if st.button("Mark Pending", use_container_width=True, disabled=is_locked, key=f"pen_{user_id}"):
             st.session_state.decisions[user_id] = {
                 "action": "pending", "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -617,9 +914,11 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
                 hypothesis["confidence"], gov.get("tier", ""), "pending",
             )
             st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with approve_col:
-        st.markdown('<span style="color: #27ae60; font-weight: bold;">Approve</span>', unsafe_allow_html=True)
+        st.markdown(f'<span style="color: {WS_GOLD}; font-weight: bold;">Approve</span>', unsafe_allow_html=True)
+        st.markdown('<div class="ws-btn-primary">', unsafe_allow_html=True)
         if st.button("Approve", type="primary", use_container_width=True, disabled=is_locked, key=f"app_{user_id}"):
             st.session_state.decisions[user_id] = {
                 "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -632,6 +931,7 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
                 hypothesis["confidence"], gov.get("tier", ""), "approved",
             )
             st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with reason_col:
         if existing.get("action") == "rejected":
@@ -649,6 +949,8 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
             st.error(f"REJECTED at {existing['timestamp']} -- Reason: {existing.get('reason', 'N/A')}")
         elif existing["action"] == "pending":
             st.info(f"Pending review since {existing.get('timestamp', 'N/A')}. You may still Approve or Reject.")
+    if hypothesis.get("guardrail_reasons"):
+        st.warning("**Guardrails:** " + " | ".join(hypothesis["guardrail_reasons"]))
 
 
 # ---------------------------------------------------------------------------

@@ -112,6 +112,22 @@ def predict_signal(features: dict, persona_tier: str, model: BaseSignalModel) ->
         "status": "pending_review",
     }
 
+    # Distance-to-upgrade (status transition)
+    gap = features.get("gap_to_next_milestone", 0)
+    pct = features.get("pct_to_milestone", 0)
+    next_name = features.get("next_milestone_name", "")
+    hypothesis["distance_to_upgrade"] = {
+        "gap_dollars": round(float(gap), 2),
+        "pct_to_milestone": round(float(pct), 4),
+        "next_milestone_name": next_name,
+    }
+    if pct >= 0.75 and pct < 1.0 and next_name:
+        hypothesis["distance_to_upgrade"]["cohort_label"] = f"Premium Path: {pct:.0%} to Milestone"
+    elif pct < 1.0 and next_name:
+        hypothesis["distance_to_upgrade"]["cohort_label"] = f"{next_name}: {pct:.0%} there"
+    else:
+        hypothesis["distance_to_upgrade"]["cohort_label"] = next_name or "At cap"
+
     # Persona-specific enrichment
     if persona_tier == "aspiring_affluent":
         rrsp_util = features.get("rrsp_utilization", 0)

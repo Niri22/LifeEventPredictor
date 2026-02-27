@@ -95,5 +95,8 @@ def enrich_hypothesis_with_governance(hypothesis: dict) -> dict:
             break
 
     gov = classify_governance_tier(conf, product_code, illiquidity, aua)
+    # Expose distance-to-upgrade label for UI (Premium Path: 80% to Milestone)
+    dist = hypothesis.get("distance_to_upgrade") or {}
+    gov["distance_label"] = dist.get("cohort_label", "")
     hypothesis["governance"] = gov
     return hypothesis

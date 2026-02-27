@@ -36,16 +36,19 @@ products:
   aspiring_affluent:
     code: "RRSP_LOAN"
     name: "Retirement Accelerator (RRSP Loan)"
+    display_name: "Momentum Builder"
     description: "Leverage unused RRSP room to leapfrog into Premium status"
 
   sticky_family_leader:
     code: "SUMMIT_PORTFOLIO"
     name: "Summit Portfolio (Private Equity) + WS Credit Card"
+    display_name: "Full-Stack Client"
     description: "Access institutional-grade private equity with liquidity monitoring"
 
   generation_nerd:
     code: "AI_RESEARCH_DIRECT_INDEX"
     name: "AI Research Dashboard + Direct Indexing + Private Credit"
+    display_name: "Legacy Architect"
     description: "Institutional-grade analysis with automated tax-loss harvesting"
 
 model:

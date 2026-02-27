@@ -87,6 +87,7 @@ def generate_profiles(config: dict | None = None) -> pd.DataFrame:
             "initial_aua": round(initial_aua, 2),
             "persona": persona,
             "signal_onset_date": signal_onset_date,
+            "direct_deposit_at_ws": bool(rng.random() < 0.4),  # 40% have DD at WS for PoC
         })
 
     return pd.DataFrame(records)

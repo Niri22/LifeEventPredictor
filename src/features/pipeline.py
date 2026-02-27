@@ -1,5 +1,6 @@
 """Full feature engineering pipeline: temporal + categorical + wealth → features.parquet."""
 
+import numpy as np
 import pandas as pd
 
 from src.features.categorical import compute_categorical_features
@@ -36,6 +37,20 @@ def build_features(
     # Fill any remaining NaN from outer joins
     numeric_cols = features.select_dtypes(include="number").columns
     features[numeric_cols] = features[numeric_cols].fillna(0.0)
+
+    # Derived: pct of spend on WS Credit Card (for Cross-Pollination guardrail)
+    features["pct_spend_on_ws_cc"] = np.where(
+        features["spend_velocity_30d"] > 0,
+        features["cc_spend_30d"] / features["spend_velocity_30d"],
+        0.0,
+    )
+    # Direct deposit at Wealthsimple (from profile)
+    if "direct_deposit_at_ws" in profiles.columns:
+        dd = profiles[["user_id", "direct_deposit_at_ws"]].drop_duplicates()
+        features = features.merge(dd, on="user_id", how="left")
+        features["direct_deposit_at_ws"] = features["direct_deposit_at_ws"].fillna(False)
+    else:
+        features["direct_deposit_at_ws"] = False
 
     # Attach ground-truth labels from profiles
     profile_labels = profiles[["user_id", "persona", "signal_onset_date"]].copy()

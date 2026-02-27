@@ -67,4 +67,25 @@ def compute_categorical_features(txns: pd.DataFrame) -> pd.DataFrame:
     features = features.merge(all_months, on=["user_id", "month"], how="left")
     features["new_mcc_flag"] = features["new_mcc_flag"].fillna(0).astype(int)
 
+    # Category-level spend for guardrails (groceries + retail "everyday" spend, MoM spike)
+    everyday_cats = ["groceries", "shopping"]
+    spend["is_everyday"] = spend["mcc_category"].isin(everyday_cats)
+    everyday = (
+        spend[spend["is_everyday"]]
+        .groupby(["user_id", "month"])["abs_amount"]
+        .sum()
+        .reset_index()
+        .rename(columns={"abs_amount": "spend_everyday_30d"})
+    )
+    features = features.merge(everyday, on=["user_id", "month"], how="left")
+    features["spend_everyday_30d"] = features["spend_everyday_30d"].fillna(0.0)
+    # MoM ratio for anomaly detection (prior month baseline)
+    features = features.sort_values(["user_id", "month"])
+    features["spend_everyday_prior"] = features.groupby("user_id")["spend_everyday_30d"].shift(1).fillna(features["spend_everyday_30d"])
+    features["everyday_spend_mom_ratio"] = np.where(
+        features["spend_everyday_prior"] > 0,
+        features["spend_everyday_30d"] / features["spend_everyday_prior"],
+        1.0,
+    )
+
     return features

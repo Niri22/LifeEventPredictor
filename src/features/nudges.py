@@ -44,12 +44,20 @@ _DEFAULT_NUDGE = (
     "Review the audit log for contributing features."
 )
 
+# Cross-Pollination (Bank-Replacement Lead) nudge
+NUDGE_BANK_REPLACEMENT = (
+    "You earned **${rewards_approx:.0f}** in rewards this month. "
+    "If you moved your direct deposit to your Cash account, you'd unlock a **4.5%** interest rate "
+    "and save approximately **${savings_approx:.0f}/year** in fees."
+)
+
 
 def generate_nudge(
     persona_tier: str,
     signal: str,
     features: dict,
     product_name: str = "",
+    tone: str = "professional",
 ) -> str:
     """
     Generate a persona-tailored rationale string.
@@ -70,7 +78,6 @@ def generate_nudge(
         return _DEFAULT_NUDGE.format(product_name=product_name or "the recommended product")
 
     aua = features.get("aua_current", 0)
-
     format_vars = {
         "gap_pct": f"{max(0, (100_000 - aua) / 100_000):.0%}" if persona_tier == "aspiring_affluent" else "N/A",
         "suggested_amount": features.get("suggested_amount", 25000),
@@ -82,6 +89,8 @@ def generate_nudge(
         "aua": aua,
         "num_positions": max(int(features.get("txn_count_30d", 10) / 3), 5),
         "product_name": product_name,
+        "rewards_approx": 42.0,
+        "savings_approx": 140.0,
     }
 
     try:

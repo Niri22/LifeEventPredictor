@@ -1,8 +1,8 @@
-"""POST /feedback -- record curator decisions for active learning."""
+"""POST /feedback -- record curator decisions. POST /batch/approve -- batch approve cohort."""
 
 from fastapi import APIRouter
 
-from api.schemas import FeedbackRequest, FeedbackResponse
+from api.schemas import BatchApproveRequest, BatchApproveResponse, FeedbackRequest, FeedbackResponse
 from src.api.feedback import get_feedback_stats, record_feedback
 
 router = APIRouter()
@@ -22,6 +22,25 @@ def submit_feedback(req: FeedbackRequest):
     )
     stats = get_feedback_stats()
     return FeedbackResponse(status="recorded", total_feedback=stats["total"])
+
+
+@router.post("/batch/approve", response_model=BatchApproveResponse)
+def batch_approve(req: BatchApproveRequest):
+    """Record approval (or rejection) for a list of cohort members."""
+    for item in req.items:
+        record_feedback(
+            user_id=item.user_id,
+            persona_tier=item.persona_tier,
+            signal=item.signal,
+            product_code=item.product_code,
+            confidence=item.confidence,
+            governance_tier=item.governance_tier,
+            action=req.action,
+        )
+    return BatchApproveResponse(
+        approved_count=len(req.items),
+        status="ok",
+    )
 
 
 @router.get("/feedback/stats")

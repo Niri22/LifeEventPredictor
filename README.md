@@ -10,6 +10,16 @@ A predictive Signal Engine that classifies retail banking users into wealth-tier
 | Sticky Family Leader | $100k-$500k | Liquidity Watchdog | Summit Portfolio + WS Credit Card |
 | Generation Nerd | $500k+ | Analyst-in-Pocket | AI Research + Direct Indexing + Private Credit |
 
+### Why the Wealthsimple EQ set
+
+The UI uses the **Wealthsimple EQ** persona names to align with product strategy:
+
+- **Momentum Builder** (Aspiring Affluent): Validates the user's trajectory toward $100k. The Life-Event logic pushes them toward that milestone using the Retirement Accelerator (RRSP Loan).
+- **Full-Stack Client** (Sticky Family Leader): Wealthsimple wants these users on everything—Credit Card, Private Equity, and Direct Deposits. This persona is the sticky core of the business.
+- **Legacy Architect** (Generation Nerd): Focused on long-term wealth. These users want institutional-grade tools (Direct Indexing, AI Dashboards) to build a multi-generational legacy.
+
+Internal keys (`aspiring_affluent`, `sticky_family_leader`, `generation_nerd`) stay unchanged in code, config, and model files.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -70,6 +80,27 @@ Curator approve/reject decisions are stored in SQLite (`data/feedback.db`, table
 - Per-persona binary XGBoost classifiers detect signals (e.g. `leapfrog_ready`, `liquidity_warning`, `harvest_opportunity`).
 - Confidence threshold and precision target are in `config/settings.yaml` (`model.confidence_threshold`, `model.precision_target`); thresholds are tuned for ~80% precision on holdout data.
 
+### Distance to Upgrade (Status Transition)
+
+- **Momentum Builder:** `gap_to_next_milestone` and `pct_to_milestone` toward Premium ($100k). Cohorts named e.g. "Premium Path: 80% to Milestone."
+- **Full-Stack Client:** Same toward Legacy ($500k).
+- **Legacy Architect:** "At cap" (no next tier).
+
+Computed in [src/features/wealth.py](src/features/wealth.py); exposed on each hypothesis as `distance_to_upgrade` and in the UI queue/detail.
+
+### Guardrail Cohorts
+
+- **Outlier Sentinel:** Life Inflection Alert when a Legacy Architect shows a large MoM spike in grocery/retail spend; RRSP Loan is not suggested.
+- **Cross-Pollination:** Bank-Replacement Lead when WS Credit Card spend ≥90% but Direct Deposit is elsewhere; nudge to move DD.
+- **Liquidity Stress:** Summit users with &lt;3 months runway are flagged; curator can pause PE contributions.
+
+See [src/classifier/guardrails.py](src/classifier/guardrails.py).
+
+### Batch Approve and Intent Cohorts
+
+- **POST /batch/approve:** Request body `{ "items": [ { "user_id", "persona_tier", "signal", "product_code", "confidence", "governance_tier" } ], "action": "approved" }`. Records feedback for each item.
+- **Intent cohorts:** Premium Leapfrog, Summit Onboarding, Bank-Replacement Lead. Built by [src/classifier/cohort_engine.py](src/classifier/cohort_engine.py). The UI shows Batch Review cards with "Why" and a Global Approve button.
+
 ## Quick Start
 
 ```bash
@@ -98,6 +129,7 @@ python -m streamlit run ui/app.py
 - `GET /health` — Model load status
 - `POST /predict` — Submit transactions; returns persona-routed signal hypothesis with governance tier, macro context, and traceability
 - `POST /feedback` — Record curator decision (approved/rejected/pending) for active learning
+- `POST /batch/approve` — Batch approve or reject a list of cohort members (body: `items` + `action`)
 - `GET /feedback/stats` — Aggregate feedback counts and approval rate
 
 ## Testing

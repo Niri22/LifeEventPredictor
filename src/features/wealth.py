@@ -86,7 +86,7 @@ def compute_wealth_features(
         .sum()
         .abs()
         .reset_index()
-        .rename(columns={"amount": "cc_debits"})
+        .rename(columns={"amount": "cc_spend_30d"})
     )
     invest_transfers = (
         df[
@@ -100,11 +100,11 @@ def compute_wealth_features(
         .rename(columns={"amount": "invest_inflow"})
     )
     ratio = cc_spend.merge(invest_transfers, on=["user_id", "month"], how="outer")
-    ratio["cc_debits"] = ratio["cc_debits"].fillna(0.0)
+    ratio["cc_spend_30d"] = ratio["cc_spend_30d"].fillna(0.0)
     ratio["invest_inflow"] = ratio["invest_inflow"].fillna(0.0)
     ratio["credit_spend_vs_invest"] = np.where(
         ratio["invest_inflow"] > 0,
-        ratio["cc_debits"] / ratio["invest_inflow"],
+        ratio["cc_spend_30d"] / ratio["invest_inflow"],
         0.0,
     )
 
@@ -116,12 +116,27 @@ def compute_wealth_features(
         on=["user_id", "month"], how="left",
     )
     result = result.merge(
-        ratio[["user_id", "month", "credit_spend_vs_invest"]],
+        ratio[["user_id", "month", "credit_spend_vs_invest", "cc_spend_30d"]],
         on=["user_id", "month"], how="left",
     )
 
     result["rrsp_utilization"] = result["rrsp_utilization"].fillna(0.0)
     result["illiquidity_ratio"] = result["illiquidity_ratio"].fillna(0.0)
     result["credit_spend_vs_invest"] = result["credit_spend_vs_invest"].fillna(0.0)
+    result["cc_spend_30d"] = result["cc_spend_30d"].fillna(0.0)
+
+    # Distance-to-upgrade (milestone) features
+    aua = result["aua_current"]
+    result["gap_to_next_milestone"] = 0.0
+    result["pct_to_milestone"] = 1.0
+    result["next_milestone_name"] = "At cap"
+    mask_below_premium = aua < 100_000
+    result.loc[mask_below_premium, "gap_to_next_milestone"] = 100_000 - aua[mask_below_premium]
+    result.loc[mask_below_premium, "pct_to_milestone"] = (aua[mask_below_premium] / 100_000).clip(0, 1)
+    result.loc[mask_below_premium, "next_milestone_name"] = "Premium ($100k)"
+    mask_below_legacy = (aua >= 100_000) & (aua < 500_000)
+    result.loc[mask_below_legacy, "gap_to_next_milestone"] = 500_000 - aua[mask_below_legacy]
+    result.loc[mask_below_legacy, "pct_to_milestone"] = (aua[mask_below_legacy] / 500_000).clip(0, 1)
+    result.loc[mask_below_legacy, "next_milestone_name"] = "Legacy ($500k)"
 
     return result
