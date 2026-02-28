@@ -118,6 +118,18 @@ Click **Get Started** to begin.
 ]
 
 
+def _advance_step(delta: int):
+    """Update onboarding step and force full app rerun so the dialog reopens with new step."""
+    step = st.session_state.get("onboarding_step", 0)
+    n_steps = len(ONBOARDING_STEPS)
+    new_step = max(0, min(step + delta, n_steps - 1))
+    st.session_state["onboarding_step"] = new_step
+    try:
+        st.rerun(scope="app")
+    except TypeError:
+        st.rerun()
+
+
 @st.dialog("Wealthsimple Pulse — System Overview", width="large")
 def show_onboarding_dialog():
     """Render the current onboarding step and Back/Next/Get Started buttons."""
@@ -135,20 +147,21 @@ def show_onboarding_dialog():
     col_back, col_spacer, col_next = st.columns([1, 2, 1])
     with col_back:
         if step > 0:
-            if st.button("← Back", use_container_width=True, key="onboard_back"):
-                st.session_state["onboarding_step"] = step - 1
-                st.rerun()
+            if st.button("← Back", use_container_width=True, key=f"onboard_back_{step}"):
+                _advance_step(-1)
     with col_next:
         if step < n_steps - 1:
-            if st.button("Next →", type="primary", use_container_width=True, key="onboard_next"):
-                st.session_state["onboarding_step"] = step + 1
-                st.rerun()
+            if st.button("Next →", type="primary", use_container_width=True, key=f"onboard_next_{step}"):
+                _advance_step(1)
         else:
             if st.button("Get Started", type="primary", use_container_width=True, key="onboard_done"):
                 st.session_state["onboarding_completed"] = True
                 if "onboarding_step" in st.session_state:
                     del st.session_state["onboarding_step"]
-                st.rerun()
+                try:
+                    st.rerun(scope="app")
+                except TypeError:
+                    st.rerun()
 
 
 def should_show_onboarding() -> bool:

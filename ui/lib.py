@@ -592,8 +592,11 @@ def render_pulse_sidebar(current_page: str):
                 unsafe_allow_html=True,
             )
         else:
-            if sb.button(label, key=f"nav_{page_id}"):
-                st.switch_page(path)
+            try:
+                sb.page_link(path, label=label)
+            except Exception:
+                if sb.button(label, key=f"nav_{page_id}"):
+                    st.switch_page(path)
     sb.markdown("</div>", unsafe_allow_html=True)
     sb.markdown("---")
 
