@@ -8,7 +8,7 @@ xgboost
 fastapi
 uvicorn[standard]
 pydantic
-streamlit
+streamlit>=1.24.1
 altair==4.2.2
 plotly
 joblib
