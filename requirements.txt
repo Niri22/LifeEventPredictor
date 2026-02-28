@@ -9,6 +9,7 @@ fastapi
 uvicorn[standard]
 pydantic
 streamlit
+altair
 plotly
 joblib
 pytest

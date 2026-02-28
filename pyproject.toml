@@ -19,6 +19,7 @@ dependencies = [
     "uvicorn[standard]",
     "pydantic",
     "streamlit",
+    "altair",
     "plotly",
     "joblib",
     "httpx",
