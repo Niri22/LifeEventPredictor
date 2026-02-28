@@ -56,3 +56,52 @@ model:
   random_state: 42
   confidence_threshold: 0.65
   precision_target: 0.80
+
+# Experimentation layer: treatment/control assignment, outcome simulation, pathway metrics, reweighting
+experiment:
+  treatment_ratio: 0.8
+  min_n: 30
+  observation_window_days: 90
+  experiment_version: "v1"
+  allow_products:
+    - RRSP_LOAN
+    - SUMMIT_PORTFOLIO
+    - AI_RESEARCH_DIRECT_INDEX
+  allow_governance_tiers:
+    - green
+    - amber
+  uplift_weights:
+    conversion_uplift: 0.30
+    delta_aua_uplift_scale: 10000.0   # divide delta_aua by this before weighting
+    delta_aua_weight: 0.25
+    liquidity_uplift_weight: 0.20
+    retention_uplift_weight: 0.20
+    complaint_uplift_weight: -0.05   # negative: more complaints = lower score
+  clamp_bounds:
+    uplift_weight_min: -0.25
+    uplift_weight_max: 0.20
+  safety_thresholds:
+    retention_uplift_min: -0.05   # if retention_uplift < this, trigger safety
+    complaint_uplift_max: 0.03    # if complaint_uplift > this, trigger safety
+    liquidity_uplift_min: -0.10   # if liquidity_uplift < this, trigger safety
+  # Pathway-level true effects (persona_tier|signal|product_code) for simulation
+  effects:
+    aspiring_affluent|leapfrog_ready|RRSP_LOAN:
+      conversion_lift: 0.06
+      aua_lift: 2500
+      liquidity_months_lift: 0.4
+      retention_lift: 0.01
+      complaint_lift: 0.002
+    sticky_family_leader|liquidity_warning|SUMMIT_PORTFOLIO:
+      conversion_lift: 0.04
+      aua_lift: 1800
+      liquidity_months_lift: 0.2
+      retention_lift: 0.02
+      complaint_lift: 0.001
+    generation_nerd|harvest_opportunity|AI_RESEARCH_DIRECT_INDEX:
+      conversion_lift: 0.05
+      aua_lift: 3200
+      liquidity_months_lift: 0.1
+      retention_lift: 0.015
+      complaint_lift: 0.001
+  seed: 42

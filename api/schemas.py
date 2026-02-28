@@ -155,3 +155,81 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     models_loaded: list[str] = []
     version: str = "0.2.0"
+
+
+# --- Experimentation layer ---
+
+
+class ExperimentAssignRequest(BaseModel):
+    """Hypothesis-like payload for assignment. governance.tier and traceability.target_product.code required."""
+    user_id: str
+    persona_tier: str
+    signal: str
+    confidence: float
+    governance: dict = Field(default_factory=dict)  # {"tier": "green"|"amber"|"red"}
+    traceability: dict = Field(default_factory=dict)  # {"target_product": {"code": "RRSP_LOAN", ...}}
+    hypothesis_id: str | None = None
+    staged_at: str = ""
+
+
+class ExperimentAssignmentRecord(BaseModel):
+    assignment_id: str
+    hypothesis_id: str
+    user_id: str
+    persona_tier: str
+    signal: str
+    product_code: str
+    governance_tier_at_assignment: str
+    calibrated_confidence_at_assignment: float
+    assignment: str  # "treatment" | "control"
+    created_at: str
+    experiment_version: str
+
+
+class ExperimentAssignResponse(BaseModel):
+    assignment: ExperimentAssignmentRecord | None = None  # null if not eligible
+
+
+class ExperimentSimulateRequest(BaseModel):
+    """Optional: list of assignment_ids to simulate. If empty, use config observation_window_days."""
+    assignment_ids: list[str] = Field(default_factory=list)
+
+
+class ExperimentSimulateResponse(BaseModel):
+    outcomes_written: int = 0
+
+
+class PathwayMetricRow(BaseModel):
+    persona_tier: str
+    signal: str
+    product_code: str
+    experiment_version: str
+    n_treatment: int
+    n_control: int
+    conversion_uplift: float
+    delta_aua_uplift: float
+    liquidity_uplift: float
+    retention_uplift: float
+    complaint_uplift: float
+    uplift_score: float
+    significance_flag: bool
+    last_updated_at: str
+
+
+class ExperimentMetricsResponse(BaseModel):
+    pathways: list[PathwayMetricRow] = Field(default_factory=list)
+
+
+class ExperimentReweightRequest(BaseModel):
+    user_id: str
+    persona_tier: str
+    signal: str
+    confidence: float
+    governance: dict = Field(default_factory=dict)
+    traceability: dict = Field(default_factory=dict)
+
+
+class ExperimentReweightResponse(BaseModel):
+    priority_score: float
+    safety_actions: list[dict] = Field(default_factory=list)
+    explanation: str = ""  # why reweighted, which metrics

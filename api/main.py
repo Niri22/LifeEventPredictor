@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from api.routes import feedback, health, predict
+from api.routes import experiment, feedback, health, predict
 from api.routes.predict import get_model
 
 
@@ -26,6 +26,7 @@ app = FastAPI(
 
 app.include_router(predict.router, tags=["prediction"])
 app.include_router(feedback.router, tags=["feedback"])
+app.include_router(experiment.router)
 app.include_router(health.router, tags=["health"])
 
 
