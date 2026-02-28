@@ -19,7 +19,7 @@ dependencies = [
     "uvicorn[standard]",
     "pydantic",
     "streamlit",
-    "altair>=4.0,<5",
+    "altair==4.2.2",
     "plotly",
     "joblib",
     "httpx",
