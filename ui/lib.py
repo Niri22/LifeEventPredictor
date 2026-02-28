@@ -256,6 +256,16 @@ def generate_hypotheses(features: pd.DataFrame, profiles: pd.DataFrame, model: X
     return hypotheses
 
 
+@st.cache_data(ttl=120)
+def get_cached_hypotheses(boc: float, vix: float):
+    """Return hypotheses for the given macro (boc, vix). Cached so Control Center loads fast when switching pages.
+    Use macro.boc_prime_rate and macro.vix; when user changes Scenario sliders, cache misses and we recompute."""
+    macro = MacroSnapshot(boc_prime_rate=boc, vix=vix)
+    profiles, _txns, features = load_data()
+    model = load_model()
+    return generate_hypotheses(features, profiles, model, macro)
+
+
 def load_cohorts_df() -> pd.DataFrame:
     path = DATA_EXPERIMENTS / "cohorts.parquet"
     if not path.exists():
@@ -306,8 +316,9 @@ def get_default_macro() -> MacroSnapshot:
     return MacroSnapshot(boc_prime_rate=DEFAULT_BOC_RATE, vix=DEFAULT_VIX)
 
 
+@st.cache_data(ttl=60)
 def get_experiment_metrics():
-    """Load experiment assignments + outcomes and compute pathway metrics (no API required)."""
+    """Load experiment assignments + outcomes and compute pathway metrics (no API required). Cached 60s to speed up page switches."""
     try:
         from src.experiments.storage import read_assignments, read_outcomes
         from src.experiments.metrics import compute_pathway_metrics
@@ -506,10 +517,11 @@ def build_queue_df(items: list) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Model artifact loading (for Growth Engine)
+# Model artifact loading (for Growth Engine and sidebar status)
 # ---------------------------------------------------------------------------
+@st.cache_resource
 def load_model_artifacts() -> dict:
-    """Load per-persona joblib artifacts. Returns {persona: artifact_dict}."""
+    """Load per-persona joblib artifacts. Returns {persona: artifact_dict}. Cached so sidebar stays fast on page switch."""
     artifacts = {}
     for persona in PERSONAS:
         path = MODEL_DIR / f"model_{persona}.joblib"

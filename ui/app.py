@@ -26,7 +26,7 @@ from ui.lib import (
     inject_ws_theme,
     load_data,
     load_model,
-    generate_hypotheses,
+    get_cached_hypotheses,
     get_default_macro,
     get_experiment_metrics,
     get_experiment_summary,
@@ -57,25 +57,23 @@ def main():
     if "decisions" not in st.session_state:
         st.session_state.decisions = {}
 
-    # First-time onboarding: show in-page tour; stop until completed so Back/Next work and styling applies
+    # Sidebar first so Control Center / Decision Console / Growth Engine always load when clicked
+    from ui.lib import render_pulse_sidebar
+    render_pulse_sidebar("control")
+
+    # If onboarding not completed, show tour in main area only; rest of page stays empty
     if should_show_onboarding():
         show_onboarding_dialog()
         st.stop()
 
     profiles, txns, features = load_data()
     model = load_model()
-
-    # ------------------------------------------------------------------
-    # Sidebar: command-console nav + context + filters + utilities
-    # ------------------------------------------------------------------
-    from ui.lib import render_pulse_sidebar
-    render_pulse_sidebar("control")
     macro = st.session_state.macro
     tier_filter = st.session_state.get("pulse_tier_filter", [k for k in TIER_LABELS if k != "not_eligible"])
     confidence_min = st.session_state.get("pulse_confidence_min", 0.5)
 
-    # Generate hypotheses and apply filters
-    hypotheses = generate_hypotheses(features, profiles, model, macro)
+    # Generate hypotheses (cached by macro so page switch is fast)
+    hypotheses = get_cached_hypotheses(round(macro.boc_prime_rate, 2), int(macro.vix))
     filtered = [
         h for h in hypotheses
         if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min

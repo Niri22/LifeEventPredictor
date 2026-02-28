@@ -31,7 +31,7 @@ from ui.lib import (
     inject_ws_theme,
     load_data,
     load_model,
-    generate_hypotheses,
+    get_cached_hypotheses,
     get_default_macro,
     apply_experiment_reweight,
     build_queue_df,
@@ -53,13 +53,11 @@ if "macro" not in st.session_state:
 
 
 def _ensure_hypotheses():
-    """Regenerate hypotheses if the Control Center hasn't populated them yet."""
+    """Use session state if Control Center already ran; else use cached hypothesis getter so page loads fast."""
     if "filtered" in st.session_state and st.session_state["filtered"]:
         return st.session_state["filtered"]
-    profiles, _txns, features = load_data()
-    model = load_model()
     macro = st.session_state.macro
-    hyps = generate_hypotheses(features, profiles, model, macro)
+    hyps = get_cached_hypotheses(round(macro.boc_prime_rate, 2), int(macro.vix))
     st.session_state["hypotheses"] = hyps
     st.session_state["filtered"] = hyps
     return hyps
