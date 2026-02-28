@@ -28,8 +28,11 @@ def evaluate_model(
 
     print(f"\n  [{persona}] Evaluation on test set:")
     print(f"  Precision: {precision:.3f} | Recall: {recall:.3f} | F1: {f1:.3f} | AUC: {auc:.3f}")
+    report_str = classification_report(
+        y_test, y_pred, target_names=["none", persona], zero_division=0
+    )
     print(f"\n  Classification Report:")
-    print(classification_report(y_test, y_pred, target_names=["none", persona], zero_division=0))
+    print(report_str)
 
     # Find optimal threshold for target precision >= 0.80
     best_threshold = _find_precision_threshold(y_test, y_proba, target_precision=0.80)
@@ -41,6 +44,7 @@ def evaluate_model(
         "f1": f1,
         "auc": auc,
         "optimal_threshold": best_threshold,
+        "classification_report": report_str,
     }
 
 

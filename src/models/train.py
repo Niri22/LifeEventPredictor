@@ -120,6 +120,7 @@ def train_all_models(config: dict | None = None) -> dict:
         # Evaluate
         from src.models.evaluate import evaluate_model
         metrics = evaluate_model(model, X_test, y_test, persona)
+        classification_report_str = metrics.pop("classification_report", None)
 
         # Save model + metadata
         artifact = {
@@ -129,6 +130,8 @@ def train_all_models(config: dict | None = None) -> dict:
             "target_label": target_label,
             "metrics": metrics,
         }
+        if classification_report_str:
+            artifact["classification_report"] = classification_report_str
         path = MODEL_DIR / f"model_{persona}.joblib"
         joblib.dump(artifact, path)
         print(f"  Saved: {path}")

@@ -103,7 +103,7 @@ See [src/classifier/guardrails.py](src/classifier/guardrails.py).
 
 ### Dashboard (multi-page)
 
-The Streamlit app is multi-page: the main **Dashboard** (home) and a **Cohort Builder** page (sidebar link or "Open Cohort Builder" in the sidebar). The sidebar includes expandable sections: **Decision Summary & Impact** (AUM unlocked, approvals, progress, decision counts, active learning stats), **Filters** (persona tier, min confidence), **Scenario Planning** (BoC rate, VIX), and **Cohort Builder** (navigate to the dedicated page). **Scenario Planning** is available in three places: the main sidebar, the Cohort Builder page, and each individual client traceability panel; the chosen scenario (BoC, VIX) is stored in session state and used for hypothesis confidence.
+The Streamlit app is multi-page: the main **Dashboard** (home), a **Cohort Builder** page (sidebar link or "Open Cohort Builder" in the sidebar), and a **Model Training** page that documents data generation, per-persona XGBoost metrics, feature importance, and production/drift considerations. The sidebar includes expandable sections: **Decision Summary & Impact** (AUM unlocked, approvals, progress, decision counts, active learning stats), **Filters** (persona tier, min confidence), **Scenario Planning** (BoC rate, VIX), and **Cohort Builder** (navigate to the dedicated page). **Scenario Planning** is available in three places: the main sidebar, the Cohort Builder page, and each individual client traceability panel; the chosen scenario (BoC, VIX) is stored in session state and used for hypothesis confidence.
 
 ## Quick Start
 
@@ -160,7 +160,7 @@ src/classifier/       -- Rule-based persona tier classifier
 src/models/           -- Per-persona XGBoost signal detectors
 api/                  -- FastAPI orchestrator with persona-routed responses
 ui/                   -- Streamlit curator dashboard with traceability panels
-ui/pages/             -- Cohort Builder page (multi-page app)
+ui/pages/             -- Cohort Builder and Model Training pages (multi-page app)
 config/               -- Settings and thresholds (settings.yaml)
 tests/                -- Test suite
 ```
