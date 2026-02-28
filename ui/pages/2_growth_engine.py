@@ -7,6 +7,13 @@ Three sections:
   C. Model Reliability (condensed precision/recall/F1, drift alerts)
 """
 
+import sys
+from pathlib import Path
+
+_root = Path(__file__).resolve().parent.parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 import pandas as pd
 import streamlit as st
 

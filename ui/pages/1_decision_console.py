@@ -7,6 +7,13 @@ Tiered Queue (Red / Amber / Green) with a reorganized detail panel:
   Bottom — Decision (rationale, Approve/Reject/Escalate, safety brakes)
 """
 
+import sys
+from pathlib import Path
+
+_root = Path(__file__).resolve().parent.parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 from datetime import datetime, timezone
 
 import pandas as pd

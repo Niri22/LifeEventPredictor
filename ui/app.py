@@ -5,6 +5,14 @@ Executive command layer: System Health KPIs, Strategic Levers, Top Actions Requi
 All case-level review lives in Decision Console; experiment/model oversight in Growth Engine.
 """
 
+import sys
+from pathlib import Path
+
+# Ensure project root is on path when running as streamlit run ui/app.py (e.g. on Streamlit Cloud)
+_root = Path(__file__).resolve().parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+
 from datetime import datetime, timezone
 
 import streamlit as st
