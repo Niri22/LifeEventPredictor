@@ -152,9 +152,43 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MODEL_DIR = PROJECT_ROOT / "data"
 PERSONAS = ["aspiring_affluent", "sticky_family_leader", "generation_nerd"]
 
+# Smaller dataset for bootstrap when data is missing (e.g. Streamlit Cloud)
+BOOTSTRAP_NUM_USERS = 150
+
+
+def _ensure_data_exists():
+    """If raw or processed parquet files are missing, generate data and run feature pipeline."""
+    profiles_path = DATA_RAW / "user_profiles.parquet"
+    txns_path = DATA_RAW / "transactions.parquet"
+    features_path = DATA_PROCESSED / "features.parquet"
+    if profiles_path.exists() and txns_path.exists() and features_path.exists():
+        return
+    # Generate synthetic data and features so the app can start (e.g. on first deploy)
+    config = load_config()
+    config = dict(config)
+    if "data_generation" not in config:
+        config["data_generation"] = {}
+    config["data_generation"] = dict(config["data_generation"])
+    config["data_generation"]["num_users"] = min(
+        config["data_generation"].get("num_users", 1000), BOOTSTRAP_NUM_USERS
+    )
+    from src.data_generator.generator import generate_dataset
+    from src.features.pipeline import run_pipeline
+    from src.models.train import train_all_models
+    DATA_RAW.mkdir(parents=True, exist_ok=True)
+    DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
+    generate_dataset(config)
+    run_pipeline()
+    # Train models if any are missing so the app can produce hypotheses
+    for p in PERSONAS:
+        if not (MODEL_DIR / f"model_{p}.joblib").exists():
+            train_all_models(config)
+            break
+
 
 @st.cache_data
 def load_data():
+    _ensure_data_exists()
     profiles = read_parquet(DATA_RAW / "user_profiles.parquet")
     txns = read_parquet(DATA_RAW / "transactions.parquet")
     txns["timestamp"] = pd.to_datetime(txns["timestamp"])
