@@ -118,21 +118,10 @@ Click **Get Started** to begin.
 ]
 
 
-def _advance_step(delta: int):
-    """Update onboarding step and force full app rerun so the dialog reopens with new step."""
-    step = st.session_state.get("onboarding_step", 0)
-    n_steps = len(ONBOARDING_STEPS)
-    new_step = max(0, min(step + delta, n_steps - 1))
-    st.session_state["onboarding_step"] = new_step
-    try:
-        st.rerun(scope="app")
-    except TypeError:
-        st.rerun()
-
-
 @st.dialog("Wealthsimple Pulse — System Overview", width="large")
 def show_onboarding_dialog():
-    """Render the current onboarding step and Back/Next/Get Started buttons."""
+    """Render the current onboarding step and Back/Next/Get Started buttons.
+    Uses a form so submit triggers a full app rerun and step updates persist."""
     step = st.session_state.get("onboarding_step", 0)
     n_steps = len(ONBOARDING_STEPS)
     step = max(0, min(step, n_steps - 1))
@@ -144,24 +133,32 @@ def show_onboarding_dialog():
     st.markdown(data["body"].strip(), unsafe_allow_html=True)
     st.divider()
 
-    col_back, col_spacer, col_next = st.columns([1, 2, 1])
-    with col_back:
-        if step > 0:
-            if st.button("← Back", use_container_width=True, key=f"onboard_back_{step}"):
-                _advance_step(-1)
-    with col_next:
-        if step < n_steps - 1:
-            if st.button("Next →", type="primary", use_container_width=True, key=f"onboard_next_{step}"):
-                _advance_step(1)
-        else:
-            if st.button("Get Started", type="primary", use_container_width=True, key="onboard_done"):
-                st.session_state["onboarding_completed"] = True
-                if "onboarding_step" in st.session_state:
-                    del st.session_state["onboarding_step"]
-                try:
-                    st.rerun(scope="app")
-                except TypeError:
-                    st.rerun()
+    # Form submit triggers full script rerun (not fragment), so step update persists
+    back_clicked = False
+    next_clicked = False
+    done_clicked = False
+    with st.form("onboarding_nav_form", clear_on_submit=True):
+        col_back, col_spacer, col_next = st.columns([1, 2, 1])
+        with col_back:
+            if step > 0:
+                back_clicked = st.form_submit_button("← Back")
+        with col_next:
+            if step < n_steps - 1:
+                next_clicked = st.form_submit_button("Next →")
+            else:
+                done_clicked = st.form_submit_button("Get Started")
+
+    if back_clicked:
+        st.session_state["onboarding_step"] = max(0, step - 1)
+        st.rerun()
+    if next_clicked:
+        st.session_state["onboarding_step"] = min(step + 1, n_steps - 1)
+        st.rerun()
+    if done_clicked:
+        st.session_state["onboarding_completed"] = True
+        if "onboarding_step" in st.session_state:
+            del st.session_state["onboarding_step"]
+        st.rerun()
 
 
 def should_show_onboarding() -> bool:
