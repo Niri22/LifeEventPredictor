@@ -7,9 +7,10 @@ build/
 .eggs/
 *.egg
 
-data/raw/*.parquet
-data/processed/*.parquet
-data/*.joblib
+# Synthetic data and trained models are committed for deploy (e.g. Streamlit Cloud)
+# data/raw/*.parquet
+# data/processed/*.parquet
+# data/*.joblib
 data/*.json
 
 .env
