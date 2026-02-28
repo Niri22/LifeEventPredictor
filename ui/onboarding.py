@@ -100,11 +100,11 @@ These personas define how Pulse prioritizes growth while preserving suitability 
         "body": """
 Every intervention is assigned a tier before it reaches you:
 
-**Green** (confidence > 0.9): Low friction — silent approval or low-friction notification eligible.
+<span style="color:#2e7d32;font-weight:600;">Green</span> (confidence > 0.9): Low friction — silent approval or low-friction notification eligible.
 
-**Amber** (0.7–0.9): Batch review — cohort and approve in bulk where appropriate.
+<span style="color:#f57c00;font-weight:600;">Amber</span> (0.7–0.9): Batch review — cohort and approve in bulk where appropriate.
 
-**Red** (< 0.7 or high-risk product): 1-to-1 human review required (e.g. illiquid allocation > 20% of AUA).
+<span style="color:#c62828;font-weight:600;">Red</span> (< 0.7 or high-risk product): 1-to-1 human review required (e.g. illiquid allocation > 20% of AUA).
         """,
     },
     {
@@ -118,56 +118,50 @@ Click **Get Started** to begin.
 ]
 
 
-@st.dialog("Wealthsimple Pulse — System Overview", width="large")
 def show_onboarding_dialog():
-    """Render the current onboarding step and Back/Next/Get Started buttons.
-    Uses a form so submit triggers a full app rerun and step updates persist."""
+    """Render onboarding in-page (no dialog) so Back/Next trigger full reruns and primary button styling works."""
     step = st.session_state.get("onboarding_step", 0)
     n_steps = len(ONBOARDING_STEPS)
     step = max(0, min(step, n_steps - 1))
     st.session_state["onboarding_step"] = step
 
+    st.markdown("---")
+    st.markdown("## Wealthsimple Pulse — System Overview")
+    st.caption("AI-native growth and governance across client personas.")
+    st.markdown("---")
+
     data = ONBOARDING_STEPS[step]
     st.markdown(f"### {data['title']}")
-    st.caption("AI-native growth and governance across client personas.")
     st.markdown(data["body"].strip(), unsafe_allow_html=True)
     st.divider()
 
-    # Form submit triggers full script rerun (not fragment), so step update persists
-    back_clicked = False
-    next_clicked = False
-    done_clicked = False
-    with st.form("onboarding_nav_form", clear_on_submit=True):
-        col_back, col_spacer, col_next = st.columns([1, 2, 1])
-        with col_back:
-            if step > 0:
-                back_clicked = st.form_submit_button("← Back")
-        with col_next:
-            if step < n_steps - 1:
-                next_clicked = st.form_submit_button("Next →")
-            else:
-                done_clicked = st.form_submit_button("Get Started")
-
-    if back_clicked:
-        st.session_state["onboarding_step"] = max(0, step - 1)
-        st.rerun()
-    if next_clicked:
-        st.session_state["onboarding_step"] = min(step + 1, n_steps - 1)
-        st.rerun()
-    if done_clicked:
-        st.session_state["onboarding_completed"] = True
-        if "onboarding_step" in st.session_state:
-            del st.session_state["onboarding_step"]
-        st.rerun()
+    col_back, col_spacer, col_next = st.columns([1, 2, 1])
+    with col_back:
+        if step > 0:
+            if st.button("← Back", use_container_width=True, key="onboard_back"):
+                st.session_state["onboarding_step"] = max(0, step - 1)
+                st.rerun()
+    with col_next:
+        if step < n_steps - 1:
+            if st.button("Next →", type="primary", use_container_width=True, key="onboard_next"):
+                st.session_state["onboarding_step"] = min(step + 1, n_steps - 1)
+                st.rerun()
+        else:
+            if st.button("Get Started", type="primary", use_container_width=True, key="onboard_done"):
+                st.session_state["onboarding_completed"] = True
+                if "onboarding_step" in st.session_state:
+                    del st.session_state["onboarding_step"]
+                st.rerun()
+    st.markdown("---")
 
 
 def should_show_onboarding() -> bool:
-    """True if we should auto-show the onboarding dialog (first visit)."""
+    """True if we should auto-show the onboarding (first visit)."""
     return not st.session_state.get("onboarding_completed", False)
 
 
 def start_tour():
-    """Reset onboarding state and open the dialog (for 'Start Tour' button)."""
+    """Reset onboarding state and show tour in-page (for 'Tour' button in sidebar)."""
     st.session_state["onboarding_completed"] = False
     st.session_state["onboarding_step"] = 0
-    show_onboarding_dialog()
+    st.rerun()

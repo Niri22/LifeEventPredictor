@@ -57,9 +57,10 @@ def main():
     if "decisions" not in st.session_state:
         st.session_state.decisions = {}
 
-    # First-time onboarding: show tour modal when not yet completed
+    # First-time onboarding: show in-page tour; stop until completed so Back/Next work and styling applies
     if should_show_onboarding():
         show_onboarding_dialog()
+        st.stop()
 
     profiles, txns, features = load_data()
     model = load_model()
