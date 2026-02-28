@@ -9,7 +9,7 @@ fastapi
 uvicorn[standard]
 pydantic
 streamlit
-altair
+altair>=4.0,<5
 plotly
 joblib
 pytest
