@@ -50,9 +50,61 @@ TIER_COLORS = {
 }
 
 SIGNAL_LABELS = {
-    "leapfrog_ready": "Leapfrog Signal",
+    "leapfrog_ready": "Leapfrog Readiness",
     "liquidity_warning": "Liquidity Watchdog",
     "harvest_opportunity": "Analyst-in-Pocket",
+}
+
+# Persona and signal explanations (for onboarding, tooltips, README)
+PERSONA_DESCRIPTIONS = {
+    "aspiring_affluent": {
+        "name": "Momentum Builder",
+        "range": "$50k–$100k AUA",
+        "who": "Pre-Premium clients with strong growth velocity.",
+        "pain_point": "High ambition, but friction crossing milestone tiers.",
+        "signal": "Leapfrog Readiness",
+        "action": "Stage RRSP Loan to accelerate Premium conversion.",
+        "product": "Retirement Accelerator (RRSP Loan).",
+        "example": "$82k AUA + high savings velocity → loan-sized bridge proposed.",
+    },
+    "sticky_family_leader": {
+        "name": "Full-Stack Client",
+        "range": "$100k–$500k AUA",
+        "who": "Premium clients with multiple goals; core of the business.",
+        "pain_point": "Multi-account friction; risk of over-allocating to illiquid exposure.",
+        "signal": "Liquidity Watchdog",
+        "action": "Monitor allocation; suggest rebalance + visibility tools.",
+        "product": "Summit + WS Credit Card.",
+        "example": "High transfers + rising credit spend → Suggest rebalance + WS Credit Card.",
+    },
+    "generation_nerd": {
+        "name": "Legacy Architect",
+        "range": "$500k+ AUA",
+        "who": "High-net-worth clients focused on long-term, multi-generational wealth.",
+        "pain_point": "Sophisticated but time-poor; want institutional-grade exposure without high friction.",
+        "signal": "Analyst-in-Pocket",
+        "action": "Tax-aware optimization and institutional-grade exposure.",
+        "product": "Advanced allocation strategies.",
+        "example": "Direct index + elevated volatility → Research summary or tax-loss harvest move.",
+    },
+}
+
+SIGNAL_DESCRIPTIONS = {
+    "leapfrog_ready": {
+        "label": "Leapfrog Readiness",
+        "meaning": "Detected signal: unused RRSP room and savings behavior that supports a loan-sized bridge to Premium.",
+        "example": "$82k AUA + high savings velocity → loan-sized bridge proposed.",
+    },
+    "liquidity_warning": {
+        "label": "Liquidity Watchdog",
+        "meaning": "Detected signal: transfer and spend patterns that risk over-allocation to illiquid exposure.",
+        "example": "High transfers + rising credit spend → Suggest rebalance + WS Credit Card.",
+    },
+    "harvest_opportunity": {
+        "label": "Analyst-in-Pocket",
+        "meaning": "Detected signal: demand for research and tax-aware optimization on holdings.",
+        "example": "Direct index + elevated volatility → Research summary or tax-loss harvest move.",
+    },
 }
 
 GOV_TIER_ICONS = {"green": "🟢", "amber": "🟡", "red": "🔴"}
@@ -346,6 +398,15 @@ def inject_ws_theme():
     .ws-alert-red {{ background: #FFEBEE; border-color: #c0392b; }}
     .ws-alert-green {{ background: #E8F5E9; border-color: #0d7d0d; }}
     .ws-alert-amber {{ background: #FFF8E1; border-color: #FFB547; }}
+    /* Command-console sidebar: flat list, no cards */
+    [data-testid="stSidebarNav"] {{ display: none !important; }}
+    .sidebar-nav {{ margin-bottom: 0.5rem; }}
+    .nav-item {{ font-size: 0.95rem; padding: 0.4rem 0 0.4rem 0.5rem; margin: 0.15rem 0; border-radius: 4px; color: var(--ws-midnight); }}
+    .nav-active {{ border-left: 3px solid var(--ws-gold); background: rgba(255,181,71,0.12); font-weight: 500; }}
+    .sidebar-context {{ font-size: 0.75rem; color: #555; margin: 0.25rem 0; line-height: 1.35; }}
+    section[data-testid="stSidebar"] .stExpander {{ border: none; background: transparent; box-shadow: none; }}
+    section[data-testid="stSidebar"] .stExpander summary {{ font-size: 0.8rem; padding: 0.35rem 0; }}
+    .sidebar-section {{ font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #666; margin: 0.5rem 0 0.25rem 0; }}
     </style>
     """,
         unsafe_allow_html=True,
@@ -423,6 +484,28 @@ def load_model_artifacts() -> dict:
     return artifacts
 
 
+def get_system_status_labels():
+    """Macro and models status for sidebar. Returns (macro_label, models_label)."""
+    macro = st.session_state.get("macro")
+    if macro is None:
+        macro = get_default_macro()
+    rate_label = "High" if macro.rates_high else "Normal"
+    vol_label = "Elevated" if macro.market_volatile else "Normal"
+    macro_label = f"Macro: {rate_label} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix:.0f})"
+
+    artifacts = load_model_artifacts()
+    if not artifacts:
+        models_label = "Models: —"
+    else:
+        precision_target = 0.80
+        below = sum(1 for a in artifacts.values() if (a.get("metrics", {}).get("precision", 0) or 0) < precision_target)
+        if below == 0:
+            models_label = "Models: Stable"
+        else:
+            models_label = f"Models: Mixed (⚠ {below} below threshold)"
+    return macro_label, models_label
+
+
 def get_model_reliability_table(artifacts: dict, precision_target: float = 0.80) -> pd.DataFrame:
     """Build compact precision/recall/F1 table with drift flag."""
     rows = []
@@ -443,3 +526,77 @@ def get_model_reliability_table(artifacts: dict, precision_target: float = 0.80)
             "Drift Alert": drift,
         })
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Shared command-console sidebar (Command Layer → Execution → Intelligence)
+# ---------------------------------------------------------------------------
+NAV_PAGES = [
+    ("control", "Control Center", "app.py"),
+    ("decision", "Decision Console", "pages/1_decision_console.py"),
+    ("growth", "Growth Engine", "pages/2_growth_engine.py"),
+]
+
+
+def render_pulse_sidebar(current_page: str):
+    """
+    Render the Pulse command-console sidebar: Primary nav only, then System Status, Configure, Help.
+    Flat list, no bordered cards. Reads/writes st.session_state.macro, pulse_tier, pulse_conf.
+    """
+    if "macro" not in st.session_state:
+        st.session_state.macro = get_default_macro()
+
+    sb = st.sidebar
+    macro = st.session_state.macro
+
+    # ----- Primary (top only) -----
+    sb.markdown('<div class="sidebar-nav">', unsafe_allow_html=True)
+    for page_id, label, path in NAV_PAGES:
+        if page_id == current_page:
+            sb.markdown(
+                f'<div class="nav-item nav-active">{label}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            if sb.button(label, key=f"nav_{page_id}"):
+                st.switch_page(path)
+    sb.markdown("</div>", unsafe_allow_html=True)
+    sb.markdown("---")
+
+    # ----- System Status -----
+    macro_label, models_label = get_system_status_labels()
+    sb.markdown('<p class="sidebar-section">System Status</p>', unsafe_allow_html=True)
+    sb.caption(macro_label)
+    sb.caption(models_label)
+    sb.markdown("---")
+
+    # ----- Configure -----
+    sb.markdown('<p class="sidebar-section">Configure</p>', unsafe_allow_html=True)
+    tier_options = [k for k in TIER_LABELS if k != "not_eligible"]
+    with sb.expander("Filters", expanded=False):
+        tier_filter = st.multiselect(
+            "Persona",
+            options=tier_options,
+            format_func=lambda x: TIER_LABELS[x].split(" ")[0],
+            default=tier_options,
+            key="pulse_tier",
+        )
+        confidence_min = st.slider("Min confidence", 0.0, 1.0, 0.5, 0.05, key="pulse_conf")
+    st.session_state["pulse_tier_filter"] = tier_filter
+    st.session_state["pulse_confidence_min"] = confidence_min
+
+    with sb.expander("Scenario", expanded=False):
+        boc_rate = st.slider("BoC %", 3.0, 8.0, float(macro.boc_prime_rate), 0.25, key="sb_boc")
+        vix_val = st.slider("VIX", 10, 40, int(macro.vix), 1, key="sb_vix")
+        st.session_state.macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix_val)
+
+    # ----- Help -----
+    sb.markdown("---")
+    sb.markdown('<p class="sidebar-section">Help</p>', unsafe_allow_html=True)
+    with sb.expander("About", expanded=False):
+        st.caption("Persona → Signal → Governance → Product → Impact")
+        for key, p in PERSONA_DESCRIPTIONS.items():
+            st.caption(f"{p['name']}: {p['signal']} → {p['action']}")
+    if sb.button("Tour", key="sb_tour"):
+        from ui.onboarding import start_tour
+        start_tour()

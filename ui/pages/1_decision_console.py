@@ -14,8 +14,6 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.api.feedback import record_feedback
-from src.api.macro_agent import MacroSnapshot
-
 from ui.lib import (
     TIER_LABELS,
     TIER_COLORS,
@@ -33,6 +31,7 @@ from ui.lib import (
     metric_with_info,
     render_confidence_gauge,
     confidence_band,
+    render_pulse_sidebar,
 )
 
 st.set_page_config(page_title="Decision Console — W Pulse", page_icon="W", layout="wide")
@@ -316,28 +315,9 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
 def main():
     inject_ws_theme()
 
-    # Sidebar: mirrors Control Center sidebar
-    st.sidebar.title("W Pulse")
-    st.sidebar.caption("Decision Console")
-    st.sidebar.divider()
-
-    with st.sidebar.expander("Filters", expanded=True):
-        tier_filter = st.multiselect(
-            "Persona Tier",
-            options=[k for k in TIER_LABELS if k != "not_eligible"],
-            format_func=lambda x: TIER_LABELS[x],
-            default=["aspiring_affluent", "sticky_family_leader", "generation_nerd"],
-            key="dc_tier",
-        )
-        confidence_min = st.slider("Min Confidence", 0.0, 1.0, 0.5, 0.05, key="dc_conf")
-
-    with st.sidebar.expander("Scenario Planning", expanded=False):
-        boc_rate = st.slider("BoC Prime Rate (%)", 3.0, 8.0, float(st.session_state.macro.boc_prime_rate), 0.25, key="dc_boc")
-        vix_val = st.slider("Market Volatility (VIX)", 10, 40, int(st.session_state.macro.vix), 1, key="dc_vix")
-        st.session_state.macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix_val)
-
-    if st.sidebar.button("← Control Center"):
-        st.switch_page("app.py")
+    render_pulse_sidebar("decision")
+    tier_filter = st.session_state.get("pulse_tier_filter", [k for k in TIER_LABELS if k != "not_eligible"])
+    confidence_min = st.session_state.get("pulse_confidence_min", 0.5)
 
     # Data
     profiles, _txns, features = load_data()

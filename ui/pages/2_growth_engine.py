@@ -26,6 +26,7 @@ from ui.lib import (
     PERSONAS,
     DATA_PROCESSED,
     read_parquet,
+    render_pulse_sidebar,
 )
 
 st.set_page_config(page_title="Growth Engine — W Pulse", page_icon="W", layout="wide")
@@ -37,11 +38,7 @@ def main():
     if "macro" not in st.session_state:
         st.session_state.macro = get_default_macro()
 
-    st.sidebar.title("W Pulse")
-    st.sidebar.caption("Growth Engine")
-    st.sidebar.divider()
-    if st.sidebar.button("← Control Center"):
-        st.switch_page("app.py")
+    render_pulse_sidebar("growth")
 
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
     st.title("Growth Engine")

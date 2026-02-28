@@ -4,21 +4,35 @@ A predictive Signal Engine that classifies retail banking users into wealth-tier
 
 ## Personas
 
-| Tier | AUA Range | Signal | Product |
-|------|-----------|--------|---------|
-| Aspiring Affluent | $50k-$100k | Leapfrog Signal | RRSP Loan (Retirement Accelerator) |
-| Sticky Family Leader | $100k-$500k | Liquidity Watchdog | Summit Portfolio + WS Credit Card |
-| Generation Nerd | $500k+ | Analyst-in-Pocket | AI Research + Direct Indexing + Private Credit |
+Pulse continuously monitors each persona for upgrade, risk, and opportunity signals — routing interventions through governance before execution. **System flow:** Persona → Detected Signal → Governance → Product → Measured Impact.
 
-### Why the Wealthsimple EQ set
+Personas are client segments based on **Assets Under Administration (AUA)**. Each has a **Detected Signal** and a **System Response** (product/intervention).
 
-The UI uses the **Wealthsimple EQ** persona names to align with product strategy:
+| Tier (internal)       | Display name       | AUA range   | Detected Signal   | Product / Response |
+|-----------------------|--------------------|-------------|-------------------|--------------------|
+| Aspiring Affluent     | Momentum Builder   | $50k–$100k  | Leapfrog Readiness | RRSP Loan (Retirement Accelerator) |
+| Sticky Family Leader  | Full-Stack Client  | $100k–$500k | Liquidity Watchdog | Summit + WS Credit Card |
+| Generation Nerd       | Legacy Architect   | $500k+      | Analyst-in-Pocket  | Tax-aware optimization, institutional-grade exposure |
 
-- **Momentum Builder** (Aspiring Affluent): Validates the user's trajectory toward $100k. The Life-Event logic pushes them toward that milestone using the Retirement Accelerator (RRSP Loan).
-- **Full-Stack Client** (Sticky Family Leader): Wealthsimple wants these users on everything—Credit Card, Private Equity, and Direct Deposits. This persona is the sticky core of the business.
-- **Legacy Architect** (Generation Nerd): Focused on long-term wealth. These users want institutional-grade tools (Direct Indexing, AI Dashboards) to build a multi-generational legacy.
+### Persona descriptions
+
+- **Momentum Builder** ($50k–$100k): Pre-Premium clients with strong growth velocity. **Pain point:** High ambition, but friction crossing milestone tiers. **System Response:** Stage RRSP Loan to accelerate Premium conversion. **Example:** $82k AUA + high savings velocity → loan-sized bridge proposed.
+
+- **Full-Stack Client** ($100k–$500k): Premium clients with multiple goals; core of the business. **Pain point:** Multi-account friction; risk of over-allocating to illiquid exposure. **System Response:** Monitor allocation; suggest rebalance + visibility tools. **Example:** High transfers + rising credit spend → Suggest rebalance + WS Credit Card.
+
+- **Legacy Architect** ($500k+): High-net-worth clients focused on long-term, multi-generational wealth. **Pain point:** Sophisticated but time-poor; want institutional-grade exposure without high friction. **System Response:** Tax-aware optimization and institutional-grade exposure. **Example:** Direct index + elevated volatility → Research summary or tax-loss harvest move.
 
 Internal keys (`aspiring_affluent`, `sticky_family_leader`, `generation_nerd`) stay unchanged in code, config, and model files.
+
+### Signals and examples
+
+**Detected signals** are behavioral patterns that trigger an intervention. Each intervention is routed through governance before execution.
+
+- **Leapfrog Readiness** (Momentum Builder): Unused RRSP room and savings behavior that support a loan-sized bridge to Premium. **Example:** $82k AUA + high savings velocity → loan-sized bridge proposed.
+
+- **Liquidity Watchdog** (Full-Stack Client): Transfer and spend patterns that risk over-allocation to illiquid exposure. **Example:** High transfers + rising credit spend → Suggest rebalance + WS Credit Card.
+
+- **Analyst-in-Pocket** (Legacy Architect): Demand for research and tax-aware optimization on holdings. **Example:** Direct index + elevated volatility → Research summary or tax-loss harvest move.
 
 ## Tech Stack
 
