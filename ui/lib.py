@@ -797,45 +797,77 @@ def inject_ws_theme():
             color: rgba(0,0,0,0.15);
         }}
         
-        /* Mission Card — hero block */
-        .ws-mission-card {{
-            background: var(--ws-off-white);
-            border: 1px solid rgba(0,0,0,0.06);
-            border-radius: var(--ws-radius);
-            padding: 1.5rem 1.75rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        /* Mission summary — compact command row */
+        .ws-mission-summary {{
+            font-size: 0.95rem;
+            color: var(--ws-muted);
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }}
+        .ws-mission-summary strong {{ color: var(--ws-midnight); }}
+        
+        /* Command bar — inline buttons */
+        .ws-command-bar {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
             margin-bottom: 1rem;
         }}
-        .ws-mission-title {{ 
-            font-size: 1.25rem; font-weight: 700; color: var(--ws-midnight); 
-            margin: 0 0 0.75rem 0; 
-        }}
-        .ws-mission-line {{ 
-            font-size: 0.95rem; color: var(--ws-muted); 
-            margin: 0.25rem 0; line-height: 1.5; 
-        }}
-        .ws-mission-line strong {{ color: var(--ws-midnight); }}
-        .ws-mission-impact {{ 
-            font-size: 0.9rem; color: var(--ws-midnight); font-weight: 600; 
-            margin-top: 0.75rem; 
-        }}
         
-        /* Action Stack — do this, not info */
-        .ws-action-stack {{
+        /* Action Stack — card rows with right-aligned CTA (enterprise pattern) */
+        .ws-action-row {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             background: var(--ws-off-white);
             border: 1px solid rgba(0,0,0,0.06);
             border-radius: var(--ws-radius);
-            padding: 1rem 1.25rem;
-            margin-bottom: 0.6rem;
+            padding: 0.85rem 1.1rem;
+            margin-bottom: 0.5rem;
             border-left-width: 4px;
             border-left-style: solid;
         }}
-        .ws-action-stack.urgent {{ border-left-color: #dc2626; }}
-        .ws-action-stack.amber {{ border-left-color: #d97706; }}
-        .ws-action-stack.growth {{ border-left-color: #16a34a; }}
-        .ws-action-stack-title {{ font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }}
-        .ws-action-stack-why {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.15rem; }}
-        .ws-action-stack-impact {{ font-size: 0.85rem; font-weight: 500; color: var(--ws-midnight); }}
+        .ws-action-row.urgent {{ border-left-color: #dc2626; }}
+        .ws-action-row.amber {{ border-left-color: #d97706; }}
+        .ws-action-row.growth {{ border-left-color: #16a34a; }}
+        .ws-action-row-text {{ flex: 1; min-width: 0; }}
+        .ws-action-row-title {{ font-size: 0.95rem; font-weight: 600; margin-bottom: 0.15rem; }}
+        .ws-action-row-sub {{ font-size: 0.8rem; color: var(--ws-muted); }}
+        
+        /* Severity-based button overrides — scoped via parent container */
+        .btn-urgent .stButton > button {{
+            background: #dc2626 !important; color: white !important;
+            border-color: #dc2626 !important; font-weight: 600;
+            max-width: 220px;
+        }}
+        .btn-urgent .stButton > button:hover {{
+            background: #b91c1c !important; border-color: #b91c1c !important;
+        }}
+        .btn-amber .stButton > button {{
+            background: transparent !important; color: #92400e !important;
+            border: 1.5px solid #d97706 !important; font-weight: 600;
+            max-width: 220px;
+        }}
+        .btn-amber .stButton > button:hover {{
+            background: #FFFBEB !important;
+        }}
+        .btn-growth .stButton > button {{
+            background: transparent !important; color: #15803d !important;
+            border: 1.5px solid #16a34a !important; font-weight: 600;
+            max-width: 220px;
+        }}
+        .btn-growth .stButton > button:hover {{
+            background: #F0FDF4 !important;
+        }}
+        .btn-muted .stButton > button {{
+            background: #1e293b !important; color: white !important;
+            border-color: #1e293b !important; font-weight: 500;
+        }}
+        .btn-muted .stButton > button:hover {{
+            background: #334155 !important; border-color: #334155 !important;
+            box-shadow: 0 0 0 2px rgba(255,181,71,0.25);
+        }}
         
         /* Compact KPI row — small, under actions */
         .ws-kpi-compact {{
