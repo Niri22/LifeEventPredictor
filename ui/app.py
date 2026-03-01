@@ -1,8 +1,8 @@
 """
 Wealthsimple Pulse -- Control Center (Home)
 
-Operational command surface: "What's urgent? What do I do next? Is the system safe?"
-All configuration lives in the sidebar. This page is executable, not analytical.
+Operator control surface. Layout:
+  Header → Status strip → Command bar → Action Stack + Progress → Impact → Collapsed system
 """
 
 import sys
@@ -53,33 +53,6 @@ def _safe_float(val, default: float = 0.0) -> float:
         return default
 
 
-def _render_safety_banner(macro, compliance: dict, timestamps: dict):
-    """Single-line trust banner. Always visible."""
-    regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Elevated"
-    try:
-        artifacts = load_model_artifacts()
-        precision_issues = sum(1 for p in PERSONAS if artifacts.get(p, {}).get("metrics", {}).get("precision", 1.0) < 0.75)
-        model_status = "Stable" if precision_issues == 0 else f"Mixed ({precision_issues} below threshold)"
-    except Exception:
-        model_status = "Unknown"
-
-    is_safe = (regime == "Normal" and model_status == "Stable" and compliance["compliance_status"] == "COMPLIANT")
-    banner_class = "safe" if is_safe else "degraded"
-    icon = "&#x2705;" if is_safe else "&#x26A0;&#xFE0F;"
-    label = "System Safe to Operate" if is_safe else "System Degraded — Review Recommended"
-
-    st.markdown(f"""
-    <div class="ws-safety-banner {banner_class}">
-        <span>{icon} <strong>{label}</strong></span>
-        <span class="sep">|</span> Macro: {regime}
-        <span class="sep">|</span> Models: {model_status}
-        <span class="sep">|</span> Compliance: {compliance['compliance_status']}
-        <span class="sep">|</span> Updated: {timestamps['last_updated']}
-        <span class="sep">|</span> {compliance['model_version']}
-    </div>
-    """, unsafe_allow_html=True)
-
-
 def main():
     inject_ws_theme()
 
@@ -98,7 +71,7 @@ def main():
         profiles, txns, features = load_data()
     except Exception:
         st.markdown('<div class="ws-main">', unsafe_allow_html=True)
-        render_empty_state("No data available.", "Awaiting signals. Ensure data is generated or check configuration.", "📊")
+        render_empty_state("No data available.", "Awaiting signals.", "📊")
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
@@ -130,58 +103,71 @@ def main():
     exp_summary = get_experiment_summary(metrics_df) if (metrics_df is not None and not getattr(metrics_df, "empty", True)) else {}
     projected_aua = _safe_float(exp_summary.get("projected_aua"), 22697)
     net_uplift = _safe_float(exp_summary.get("net_uplift"), 0.43)
-
     timestamps = get_system_timestamps()
     compliance = get_compliance_info()
 
-    # =====================================================================
-    # LAYOUT: Header → Safety → Mission + Command Bar → Action Stack →
-    #         Progress → Impact → Collapsed System
     # =====================================================================
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
 
     # ── HEADER ──
     st.markdown('<h1 class="ws-page-title">Control Center</h1>', unsafe_allow_html=True)
-    st.markdown('<div class="ws-secondary">Action queue for today\'s risk + growth decisions.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ws-secondary" style="margin-bottom:0.25rem;">Action queue for today\'s risk + growth decisions.</div>', unsafe_allow_html=True)
 
-    # ── SAFETY BANNER ──
-    _render_safety_banner(macro, compliance, timestamps)
+    # ── STATUS STRIP — neutral when safe, prominent only when degraded ──
+    regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Elevated"
+    try:
+        artifacts = load_model_artifacts()
+        precision_issues = sum(1 for p in PERSONAS if artifacts.get(p, {}).get("metrics", {}).get("precision", 1.0) < 0.75)
+        model_status = "Stable" if precision_issues == 0 else f"Mixed ({precision_issues} below)"
+    except Exception:
+        model_status = "Unknown"
 
-    # ── HERO: Mission summary + Command Bar (single location for CTAs) ──
+    is_safe = (regime == "Normal" and model_status == "Stable" and compliance["compliance_status"] == "COMPLIANT")
+    strip_class = "ws-status-strip" if is_safe else "ws-status-strip degraded"
     st.markdown(f"""
-    <div class="ws-mission-summary">
-        <strong>{len(red_cases)}</strong> High-Risk &nbsp;·&nbsp;
-        <strong>{len(undecided_amber)}</strong> Amber &nbsp;·&nbsp;
-        <strong>{len(green_cases)}</strong> Green &nbsp;·&nbsp;
-        {format_currency(projected_aua)} impact at stake
+    <div class="{strip_class}">
+        Macro: {regime} <span class="sep">·</span>
+        Models: {model_status} <span class="sep">·</span>
+        {compliance['compliance_status']} <span class="sep">·</span>
+        Updated {timestamps['last_updated']} <span class="sep">·</span>
+        {compliance['model_version']}
     </div>
     """, unsafe_allow_html=True)
 
-    # Command bar: severity-styled buttons, compact
-    cmd_red, cmd_amber, cmd_growth, _spacer = st.columns([1.2, 1.2, 1, 1.6])
-    with cmd_red:
-        if len(undecided_red) > 0:
-            st.markdown('<div class="btn-urgent">', unsafe_allow_html=True)
-            if st.button(f"Start Review ({len(undecided_red)})", key="cmd_red"):
-                st.session_state.pulse_queue_tier = "red"
-                st.switch_page("pages/1_decision_console.py")
-            st.markdown("</div>", unsafe_allow_html=True)
-    with cmd_amber:
-        if len(undecided_amber) > 0:
-            st.markdown('<div class="btn-amber">', unsafe_allow_html=True)
-            if st.button(f"Approve Cohort ({len(undecided_amber)})", key="cmd_amber"):
-                st.session_state.pulse_queue_tier = "amber"
-                st.switch_page("pages/1_decision_console.py")
-            st.markdown("</div>", unsafe_allow_html=True)
-    with cmd_growth:
-        st.markdown('<div class="btn-growth">', unsafe_allow_html=True)
-        if st.button("Inspect Pathway", key="cmd_growth"):
-            st.switch_page("pages/2_growth_engine.py")
-        st.markdown("</div>", unsafe_allow_html=True)
+    # ── COMMAND BAR — left: summary text, right: primary + secondary buttons ──
+    cmd_text, cmd_btns = st.columns([3, 2])
+    with cmd_text:
+        st.markdown(
+            f'<div style="font-size:0.9rem;color:#64748b;padding-top:0.35rem;">'
+            f'<strong style="color:#0f172a;">{len(red_cases)}</strong> High-Risk '
+            f'<span style="color:#cbd5e1;">·</span> '
+            f'<strong style="color:#0f172a;">{len(undecided_amber)}</strong> Amber '
+            f'<span style="color:#cbd5e1;">·</span> '
+            f'<strong style="color:#0f172a;">{len(green_cases)}</strong> Green '
+            f'<span style="color:#cbd5e1;">·</span> '
+            f'{format_currency(projected_aua)} at stake</div>',
+            unsafe_allow_html=True,
+        )
+    with cmd_btns:
+        b1, b2 = st.columns(2)
+        with b1:
+            if len(undecided_red) > 0:
+                st.markdown('<div class="btn-urgent">', unsafe_allow_html=True)
+                if st.button(f"Start Review ({len(undecided_red)})", key="cmd_red"):
+                    st.session_state.pulse_queue_tier = "red"
+                    st.switch_page("pages/1_decision_console.py")
+                st.markdown("</div>", unsafe_allow_html=True)
+        with b2:
+            if len(undecided_amber) > 0:
+                st.markdown('<div class="btn-amber">', unsafe_allow_html=True)
+                if st.button(f"Approve Amber ({len(undecided_amber)})", key="cmd_amber"):
+                    st.session_state.pulse_queue_tier = "amber"
+                    st.switch_page("pages/1_decision_console.py")
+                st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
-    # ── ACTION STACK — card rows with right-aligned secondary buttons ──
+    # ── ACTION STACK — each card is one st.columns row: [text | button] ──
     st.markdown('<div class="ws-section-header">Action Stack</div>', unsafe_allow_html=True)
 
     actions_rendered = 0
@@ -189,19 +175,21 @@ def main():
     # 1. High-risk
     if len(red_cases) > 0:
         try:
-            st.markdown(f"""
-            <div class="ws-action-row urgent">
-                <div class="ws-action-row-text">
-                    <div class="ws-action-row-title">High-Risk Review — {len(red_cases)} cases</div>
-                    <div class="ws-action-row-sub">Liquidity + suitability triggered ({n_red_liquidity} liquidity, {n_red_other} other) · Prevents unsuitable allocation</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown('<div class="btn-urgent" style="display:flex;justify-content:flex-end;">', unsafe_allow_html=True)
-            if st.button(f"Review ({len(undecided_red)})", key="as_red"):
-                st.session_state.pulse_queue_tier = "red"
-                st.switch_page("pages/1_decision_console.py")
-            st.markdown("</div>", unsafe_allow_html=True)
+            c_text, c_btn = st.columns([4, 1])
+            with c_text:
+                st.markdown(
+                    f'<div style="border-left:4px solid #dc2626;padding:0.6rem 0.9rem;background:#fafafa;border-radius:6px;">'
+                    f'<div style="font-weight:600;font-size:0.9rem;">High-Risk Review — {len(red_cases)} cases</div>'
+                    f'<div style="font-size:0.8rem;color:#64748b;">Liquidity + suitability ({n_red_liquidity} liquidity, {n_red_other} other) · Prevents unsuitable allocation</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with c_btn:
+                st.markdown('<div class="btn-urgent">', unsafe_allow_html=True)
+                if st.button(f"Review ({len(undecided_red)})", key="as_red"):
+                    st.session_state.pulse_queue_tier = "red"
+                    st.switch_page("pages/1_decision_console.py")
+                st.markdown("</div>", unsafe_allow_html=True)
             actions_rendered += 1
         except Exception:
             pass
@@ -209,19 +197,21 @@ def main():
     # 2. Batch approvals
     if len(undecided_amber) > 0:
         try:
-            st.markdown(f"""
-            <div class="ws-action-row amber">
-                <div class="ws-action-row-text">
-                    <div class="ws-action-row-title">Batch Approvals — {len(undecided_amber)} eligible</div>
-                    <div class="ws-action-row-sub">Medium risk + high confidence, cohort-safe · Reduces curator load ~40%</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown('<div class="btn-amber" style="display:flex;justify-content:flex-end;">', unsafe_allow_html=True)
-            if st.button(f"Approve Cohort ({len(undecided_amber)})", key="as_amber"):
-                st.session_state.pulse_queue_tier = "amber"
-                st.switch_page("pages/1_decision_console.py")
-            st.markdown("</div>", unsafe_allow_html=True)
+            c_text, c_btn = st.columns([4, 1])
+            with c_text:
+                st.markdown(
+                    f'<div style="border-left:4px solid #d97706;padding:0.6rem 0.9rem;background:#fafafa;border-radius:6px;">'
+                    f'<div style="font-weight:600;font-size:0.9rem;">Batch Approvals — {len(undecided_amber)} eligible</div>'
+                    f'<div style="font-size:0.8rem;color:#64748b;">Medium risk + high confidence, cohort-safe · Reduces curator load ~40%</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with c_btn:
+                st.markdown('<div class="btn-amber">', unsafe_allow_html=True)
+                if st.button(f"Approve ({len(undecided_amber)})", key="as_amber"):
+                    st.session_state.pulse_queue_tier = "amber"
+                    st.switch_page("pages/1_decision_console.py")
+                st.markdown("</div>", unsafe_allow_html=True)
             actions_rendered += 1
         except Exception:
             pass
@@ -235,18 +225,20 @@ def main():
             product_lbl = experiment_product_label(str(row.get("product_code", "Unknown")))
             uplift_pct = _safe_float(row.get("uplift_score"), 0) * 100
             delta_aua = _safe_float(row.get("delta_aua_uplift"), 0)
-            st.markdown(f"""
-            <div class="ws-action-row growth">
-                <div class="ws-action-row-text">
-                    <div class="ws-action-row-title">Growth — {persona_lbl} + {product_lbl}</div>
-                    <div class="ws-action-row-sub">+{uplift_pct:.1f}% uplift · +{format_currency(delta_aua)} projected AUA</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown('<div class="btn-growth" style="display:flex;justify-content:flex-end;">', unsafe_allow_html=True)
-            if st.button("Inspect Pathway", key="as_growth"):
-                st.switch_page("pages/2_growth_engine.py")
-            st.markdown("</div>", unsafe_allow_html=True)
+            c_text, c_btn = st.columns([4, 1])
+            with c_text:
+                st.markdown(
+                    f'<div style="border-left:4px solid #16a34a;padding:0.6rem 0.9rem;background:#fafafa;border-radius:6px;">'
+                    f'<div style="font-weight:600;font-size:0.9rem;">Growth — {persona_lbl} + {product_lbl}</div>'
+                    f'<div style="font-size:0.8rem;color:#64748b;">+{uplift_pct:.1f}% uplift · +{format_currency(delta_aua)} projected AUA</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with c_btn:
+                st.markdown('<div class="btn-growth">', unsafe_allow_html=True)
+                if st.button("Inspect Pathway", key="as_growth"):
+                    st.switch_page("pages/2_growth_engine.py")
+                st.markdown("</div>", unsafe_allow_html=True)
             actions_rendered += 1
         except Exception:
             pass
@@ -254,19 +246,11 @@ def main():
     if actions_rendered == 0:
         render_empty_state("All Systems Nominal", "No immediate actions required.", "🎯")
 
-    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
-
-    # ── QUEUE PROGRESS ──
+    # ── QUEUE PROGRESS — directly under action stack ──
     total_requiring_review = len(undecided_red) + len(undecided_amber)
     total_queue = len(red_cases) + len(amber_cases)
     processed_today = total_queue - total_requiring_review if total_queue else 0
-
-    st.markdown('<div class="ws-subsection">Queue Progress</div>', unsafe_allow_html=True)
-    st.markdown(
-        f'<div class="queue-progress">Processed: <strong>{processed_today} / {total_queue}</strong> '
-        f'&nbsp;&nbsp;·&nbsp;&nbsp; Remaining: <strong>{total_requiring_review}</strong></div>',
-        unsafe_allow_html=True,
-    )
+    st.caption(f"Processed: **{processed_today} / {total_queue}** · Remaining: **{total_requiring_review}**")
     st.progress(processed_today / total_queue if total_queue else 1.0)
 
     st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
@@ -281,7 +265,7 @@ def main():
         except Exception:
             pass
     st.markdown('<div class="btn-muted">', unsafe_allow_html=True)
-    if st.button("See details → Growth Engine", key="impact_link"):
+    if st.button("Details → Growth Engine", key="impact_link"):
         st.switch_page("pages/2_growth_engine.py")
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -305,9 +289,8 @@ def main():
         col_left, col_right = st.columns(2)
         with col_left:
             render_governance_constraints()
-            regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Volatile"
             st.markdown(f"""
-            <div class="ws-secondary" style="margin-top: 1rem;">
+            <div class="ws-secondary" style="margin-top:0.75rem;">
             <strong>Macro:</strong> {regime} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix:.0f})<br>
             <strong>Governance:</strong> Green >0.90 | Amber 0.70–0.90 | Red &lt;0.70<br>
             <strong>Uplift Clamp:</strong> [-25%, +20%]

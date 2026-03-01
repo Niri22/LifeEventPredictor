@@ -771,75 +771,28 @@ def inject_ws_theme():
         .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }}
         .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
         
-        /* System Safety Banner — single trust strip */
-        .ws-safety-banner {{
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            padding: 0.5rem 1rem;
-            border-radius: var(--ws-radius);
-            font-size: 0.8rem;
-            font-weight: 500;
-            flex-wrap: wrap;
-            margin-bottom: 0.25rem;
+        /* Status strip — neutral when safe, prominent only when degraded */
+        .ws-status-strip {{
+            font-size: 0.75rem;
+            color: var(--ws-muted);
+            padding: 0.3rem 0;
+            margin-bottom: 0.4rem;
+            line-height: 1.4;
         }}
-        .ws-safety-banner.safe {{
-            background: #F0FDF4;
-            border: 1px solid rgba(22,163,74,0.2);
-            color: #15803d;
-        }}
-        .ws-safety-banner.degraded {{
+        .ws-status-strip .sep {{ color: rgba(0,0,0,0.12); }}
+        .ws-status-strip.degraded {{
             background: #FFFBEB;
             border: 1px solid rgba(217,119,6,0.2);
-            color: #92400e;
-        }}
-        .ws-safety-banner .sep {{
-            color: rgba(0,0,0,0.15);
-        }}
-        
-        /* Mission summary — compact command row */
-        .ws-mission-summary {{
-            font-size: 0.95rem;
-            color: var(--ws-muted);
-            margin-bottom: 0.75rem;
-            line-height: 1.6;
-        }}
-        .ws-mission-summary strong {{ color: var(--ws-midnight); }}
-        
-        /* Command bar — inline buttons */
-        .ws-command-bar {{
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-bottom: 1rem;
-        }}
-        
-        /* Action Stack — card rows with right-aligned CTA (enterprise pattern) */
-        .ws-action-row {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--ws-off-white);
-            border: 1px solid rgba(0,0,0,0.06);
             border-radius: var(--ws-radius);
-            padding: 0.85rem 1.1rem;
-            margin-bottom: 0.5rem;
-            border-left-width: 4px;
-            border-left-style: solid;
+            color: #92400e;
+            padding: 0.4rem 0.75rem;
+            font-weight: 500;
         }}
-        .ws-action-row.urgent {{ border-left-color: #dc2626; }}
-        .ws-action-row.amber {{ border-left-color: #d97706; }}
-        .ws-action-row.growth {{ border-left-color: #16a34a; }}
-        .ws-action-row-text {{ flex: 1; min-width: 0; }}
-        .ws-action-row-title {{ font-size: 0.95rem; font-weight: 600; margin-bottom: 0.15rem; }}
-        .ws-action-row-sub {{ font-size: 0.8rem; color: var(--ws-muted); }}
         
-        /* Severity-based button overrides — scoped via parent container */
+        /* Severity-based button overrides */
         .btn-urgent .stButton > button {{
             background: #dc2626 !important; color: white !important;
             border-color: #dc2626 !important; font-weight: 600;
-            max-width: 220px;
         }}
         .btn-urgent .stButton > button:hover {{
             background: #b91c1c !important; border-color: #b91c1c !important;
@@ -847,27 +800,25 @@ def inject_ws_theme():
         .btn-amber .stButton > button {{
             background: transparent !important; color: #92400e !important;
             border: 1.5px solid #d97706 !important; font-weight: 600;
-            max-width: 220px;
         }}
-        .btn-amber .stButton > button:hover {{
-            background: #FFFBEB !important;
-        }}
+        .btn-amber .stButton > button:hover {{ background: #FFFBEB !important; }}
         .btn-growth .stButton > button {{
             background: transparent !important; color: #15803d !important;
             border: 1.5px solid #16a34a !important; font-weight: 600;
-            max-width: 220px;
         }}
-        .btn-growth .stButton > button:hover {{
-            background: #F0FDF4 !important;
-        }}
+        .btn-growth .stButton > button:hover {{ background: #F0FDF4 !important; }}
         .btn-muted .stButton > button {{
-            background: #1e293b !important; color: white !important;
-            border-color: #1e293b !important; font-weight: 500;
+            background: transparent !important; color: var(--ws-muted) !important;
+            border: 1px solid rgba(0,0,0,0.15) !important; font-weight: 500;
+            font-size: 0.8rem !important;
         }}
         .btn-muted .stButton > button:hover {{
-            background: #334155 !important; border-color: #334155 !important;
-            box-shadow: 0 0 0 2px rgba(255,181,71,0.25);
+            background: var(--ws-stone) !important;
         }}
+        
+        /* Tighter vertical rhythm for Control Center */
+        .ws-divider {{ margin: 1rem 0; }}
+        .ws-section-header {{ margin-bottom: 0.4rem; }}
         
         /* Compact KPI row — small, under actions */
         .ws-kpi-compact {{
