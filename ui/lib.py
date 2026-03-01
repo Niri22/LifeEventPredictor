@@ -843,7 +843,7 @@ def inject_ws_theme():
         .ws-status-strip {{
             font-size: 0.75rem;
             color: var(--ws-muted);
-            padding: 0.3rem 0;
+            padding: calc(0.3rem + 5px) 0;
             margin-bottom: 0.4rem;
             line-height: 1.4;
         }}

@@ -111,7 +111,7 @@ def main():
 
     # ── HEADER ──
     st.markdown('<h1 class="ws-page-title">Control Center</h1>', unsafe_allow_html=True)
-    st.markdown('<div class="ws-secondary" style="margin-bottom:0.25rem;">Action queue for today\'s risk + growth decisions.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ws-secondary" style="margin-bottom:0.25rem;padding-top:5px;padding-bottom:5px;">Action queue for today\'s risk + growth decisions.</div>', unsafe_allow_html=True)
 
     # ── STATUS STRIP — neutral when safe, prominent only when degraded ──
     regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Elevated"
@@ -136,7 +136,7 @@ def main():
 
     # ── SUMMARY LINE — counts only, no buttons ──
     st.markdown(
-        f'<div style="font-size:0.85rem;color:#64748b;margin-bottom:0.5rem;">'
+        f'<div style="font-size:0.85rem;color:#64748b;margin-bottom:0.5rem;padding-top:5px;padding-bottom:5px;">'
         f'<strong style="color:#0f172a;">{len(red_cases)}</strong> High-Risk '
         f'<span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>'
         f'<strong style="color:#0f172a;">{len(undecided_amber)}</strong> Amber '
