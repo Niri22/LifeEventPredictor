@@ -20,7 +20,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.api.feedback import record_feedback, get_recent_feedback
+from src.api.feedback import record_feedback
+try:
+    from src.api.feedback import get_recent_feedback
+except ImportError:
+    def get_recent_feedback(limit: int = 10) -> list:
+        """Fallback if deployed version lacks this function."""
+        return []
 from ui.lib import (
     TIER_LABELS,
     SIGNAL_LABELS,
