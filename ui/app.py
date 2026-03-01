@@ -282,11 +282,12 @@ def main():
         with col_left:
             render_governance_constraints()
             st.markdown(f"""
-            <div class="ws-secondary" style="margin-top:0.75rem;">
-            <strong>Macro:</strong> {regime} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix:.0f})<br>
-            <strong>Governance:</strong> Green >0.90 | Amber 0.70–0.90 | Red &lt;0.70<br>
-            <strong>Uplift Clamp:</strong> [-25%, +20%]
+            <div style="margin-top:0.75rem;background:#f1f5f9;border-radius:6px;padding:0.6rem 0.9rem;font-size:0.82rem;color:#334155;line-height:1.7;">
+            <strong style="color:#0f172a;">Macro:</strong> {regime} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix:.0f})<br>
+            <strong style="color:#0f172a;">Governance:</strong> <span style="color:#16a34a;">Green &gt;0.90</span> | <span style="color:#d97706;">Amber 0.70–0.90</span> | <span style="color:#dc2626;">Red &lt;0.70</span><br>
+            <strong style="color:#0f172a;">Uplift Clamp:</strong> [-25%, +20%]
             </div>
+            <div style="margin-bottom:20px;"></div>
             """, unsafe_allow_html=True)
         with col_right:
             try:

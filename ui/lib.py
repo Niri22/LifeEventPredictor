@@ -1229,18 +1229,20 @@ def render_client_snapshot(hypothesis: dict, features: pd.DataFrame = None, last
 def render_governance_constraints():
     """Show explicit hard constraints for trust and compliance."""
     st.markdown("""
-    <div class="ws-audit-summary">
+    <div style="margin-bottom:0.75rem;">
         <div class="ws-subsection" style="margin: 0 0 0.75rem 0;">Governance Thresholds</div>
-        <div class="ws-secondary">
-            <strong>Auto-Escalation Rules:</strong><br>
-            • Illiquid allocation >20% AUA → Manual review required<br>
-            • Credit exposure >5x monthly income → Compliance review<br>
-            • Model confidence <0.60 → Auto-approval blocked<br>
-            • Product value >$50k → Senior approval required<br><br>
-            <strong>Regulatory Compliance:</strong><br>
-            • PIPEDA privacy impact assessed ✓<br>
-            • OSFI ML/AI guidelines compliant ✓<br>
-            • Suitability determination documented ✓
+        <div style="background:#f1f5f9;border-radius:6px;padding:0.6rem 0.9rem;font-size:0.82rem;color:#334155;line-height:1.8;">
+            <strong style="color:#0f172a;">Auto-Escalation Rules:</strong><br>
+            • Illiquid allocation <span style="color:#dc2626;font-weight:600;">&gt;20% AUA</span> → Manual review required<br>
+            • Credit exposure <span style="color:#dc2626;font-weight:600;">&gt;5x monthly income</span> → Compliance review<br>
+            • Model confidence <span style="color:#d97706;font-weight:600;">&lt;0.60</span> → Auto-approval blocked<br>
+            • Product value <span style="color:#d97706;font-weight:600;">&gt;$50k</span> → Senior approval required
+        </div>
+        <div style="background:#f0fdf4;border-radius:6px;padding:0.6rem 0.9rem;font-size:0.82rem;color:#334155;line-height:1.8;margin-top:0.5rem;">
+            <strong style="color:#0f172a;">Regulatory Compliance:</strong><br>
+            • PIPEDA privacy impact assessed <span style="color:#16a34a;font-weight:600;">✓</span><br>
+            • OSFI ML/AI guidelines compliant <span style="color:#16a34a;font-weight:600;">✓</span><br>
+            • Suitability determination documented <span style="color:#16a34a;font-weight:600;">✓</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1251,19 +1253,25 @@ def render_model_confidence_context(persona: str, current: float, target: float 
     if current >= target:
         status_class = "healthy"
         action = "Within target"
-    elif current >= target * 0.8:  # 80% of target
-        status_class = "warning" 
+        action_color = "#16a34a"
+        bg = "#f0fdf4"
+    elif current >= target * 0.8:
+        status_class = "warning"
         action = "Monitoring — retraining scheduled"
+        action_color = "#d97706"
+        bg = "#fffbeb"
     else:
         status_class = "error"
         action = "Below threshold — retraining in progress"
-    
+        action_color = "#dc2626"
+        bg = "#fef2f2"
+
     st.markdown(f"""
-    <div class="ws-model-status">
+    <div style="display:flex;align-items:center;gap:0.6rem;background:{bg};border-radius:6px;padding:0.45rem 0.75rem;margin-bottom:0.35rem;font-size:0.82rem;">
         <span class="ws-status-indicator {status_class}"></span>
-        <span class="target">Target: {target:.2f}</span>
-        <span class="current">Current: {current:.2f}</span>
-        <span class="action">{action}</span>
+        <span style="color:#64748b;">Target: {target:.2f}</span>
+        <span style="font-weight:700;color:#0f172a;">Current: {current:.2f}</span>
+        <span style="color:{action_color};font-weight:600;">{action}</span>
     </div>
     """, unsafe_allow_html=True)
 
