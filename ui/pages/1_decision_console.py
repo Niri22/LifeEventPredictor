@@ -39,8 +39,11 @@ from ui.lib import (
     confidence_band,
     render_pulse_sidebar,
     render_governance_badge,
-    show_toast,
-    get_last_updated,
+    show_micro_feedback_toast,
+    get_system_timestamps,
+    render_audit_summary,
+    render_empty_state,
+    get_compliance_info,
     ITEM_TERMINOLOGY,
 )
 
@@ -340,20 +343,42 @@ def main():
         if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min
     ]
 
-    # Header
+    # Header with strong typography
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
-    st.title("Decision Console")
-    st.caption("Tiered Queue — Case-level Review")
+    
+    col_title, col_updated = st.columns([3, 1])
+    with col_title:
+        st.markdown('<h1 class="ws-page-title">Decision Console</h1>', unsafe_allow_html=True)
+        st.markdown('<div class="ws-secondary">Case-level review with governance tiers and audit trail</div>', unsafe_allow_html=True)
+    with col_updated:
+        timestamps = get_system_timestamps()
+        compliance = get_compliance_info()
+        st.markdown(f"""
+        <div class="ws-micro" style="text-align: right;">
+        <div>Last updated: {timestamps['last_updated']}</div>
+        <div>Model: {compliance['model_version']} | Decisions: 100% logged</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
     if not filtered:
-        st.info("No signals match your filter criteria.")
+        render_empty_state(
+            "No Cases Match Filters",
+            "Adjust your persona tier or confidence thresholds to see cases.",
+            "🔍"
+        )
         st.markdown("</div>", unsafe_allow_html=True)
         return
+    
+    # Show audit trail summary at top for system maturity
+    render_audit_summary()
 
     red = [h for h in filtered if h.get("governance", {}).get("tier") == "red"]
     amber = [h for h in filtered if h.get("governance", {}).get("tier") == "amber"]
     green = [h for h in filtered if h.get("governance", {}).get("tier") == "green"]
 
+    st.markdown('<div class="ws-section-header">Tiered Queue</div>', unsafe_allow_html=True)
     tab_red, tab_amber, tab_green = st.tabs([
         f"🔴 Red — Manual Review ({len(red)})",
         f"🟡 Amber — Batch Review ({len(amber)})",

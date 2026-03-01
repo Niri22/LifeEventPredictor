@@ -49,23 +49,29 @@ def main():
 
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
     
-    # Header with last updated
+    # Header with strong typography
     col_title, col_updated = st.columns([3, 1])
     with col_title:
-        st.markdown('<h1 class="ws-heading">Growth Engine</h1>', unsafe_allow_html=True)
-        st.caption("Experiment outcomes and model reliability — which pathways are winning?")
+        st.markdown('<h1 class="ws-page-title">Growth Engine</h1>', unsafe_allow_html=True)
+        st.markdown('<div class="ws-secondary">Experiment outcomes and model reliability — which pathways are winning?</div>', unsafe_allow_html=True)
     with col_updated:
-        from ui.lib import get_last_updated, get_model_version
-        st.markdown(f"**Last Updated:** {get_last_updated()}")
-        st.caption(f"Model: {get_model_version()}")
+        from ui.lib import get_last_updated, get_model_version, get_system_timestamps, get_compliance_info
+        timestamps = get_system_timestamps()
+        compliance = get_compliance_info()
+        st.markdown(f"""
+        <div class="ws-micro" style="text-align: right;">
+        <div>Last updated: {timestamps['last_updated']}</div>
+        <div>Model: {compliance['model_version']} | Build: {compliance['model_build_date']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     metrics_df = get_experiment_metrics()
 
-    # ==================================================================
-    # SECTION A: Impact & Uplift (Executive View) - Answers in 5 seconds
-    # ==================================================================
-    st.markdown("### Impact & Uplift")
-    st.caption("Which pathways are winning? Which are losing? What is the magnitude of impact? Should we scale or suppress?")
+    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
+    
+    # Impact & Uplift (Executive View) - Answers in 5 seconds
+    st.markdown('<div class="ws-section-header">Impact & Uplift</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ws-secondary">Which pathways are winning? Which are losing? What is the magnitude of impact? Should we scale or suppress?</div>', unsafe_allow_html=True)
 
     if metrics_df.empty:
         from ui.lib import render_empty_state
@@ -104,11 +110,11 @@ def main():
         with k4:
             render_kpi_card("Projected AUA Impact", f"${projected_aua:,.0f}", "Total expected growth", "positive" if projected_aua >= 0 else "negative")
 
-        st.markdown("---")
+        st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
         # Ranked Pathways (Visual Priority) - sorted by composite uplift
-        st.markdown("### Ranked Pathways")
-        st.caption("Priority Score = calibrated_confidence + measured_uplift - risk_penalty")
+        st.markdown('<div class="ws-section-header">Ranked Pathways</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ws-secondary">Priority Score = calibrated_confidence + measured_uplift - risk_penalty</div>', unsafe_allow_html=True)
         
         ranked, styled = build_ranked_experiment_table(metrics_df)
         if styled is not None:
@@ -125,11 +131,11 @@ def main():
                 else:
                     st.info("**Recommendation:** Hold current prioritization weights — insufficient signal for adjustment")
 
-        st.markdown("---")
+        st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
         # Pathway Deep Dive (On Click) - grouped by meaning
         if not ranked.empty:
-            st.markdown("### Pathway Deep Dive")
+            st.markdown('<div class="ws-section-header">Pathway Deep Dive</div>', unsafe_allow_html=True)
             sel_idx = st.selectbox(
                 "Select pathway for detailed analysis",
                 range(len(ranked)),
@@ -259,6 +265,19 @@ def main():
 
             st.markdown("**Retraining Status**")
             st.caption("Last trained: Synthetic data v1. Retrain on production data quarterly or when drift alerts trigger.")
+
+    # Compliance and governance footer
+    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
+    
+    col_gov, col_compliance = st.columns(2)
+    
+    with col_gov:
+        from ui.lib import render_governance_constraints
+        render_governance_constraints()
+    
+    with col_compliance:
+        from ui.lib import render_model_governance_panel
+        render_model_governance_panel()
 
     st.markdown("</div>", unsafe_allow_html=True)
 

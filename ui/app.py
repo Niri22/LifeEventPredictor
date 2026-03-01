@@ -57,7 +57,12 @@ def main():
         st.session_state.decisions = {}
 
     # Sidebar first so Control Center / Decision Console / Growth Engine always load when clicked
-    from ui.lib import render_pulse_sidebar, render_kpi_card, render_action_card, render_empty_state, format_currency, format_number, get_last_updated, ITEM_TERMINOLOGY
+    from ui.lib import (
+        render_pulse_sidebar, render_kpi_card, render_action_card, render_empty_state, 
+        format_currency, format_number, get_last_updated, ITEM_TERMINOLOGY,
+        render_governance_constraints, render_audit_summary, render_model_confidence_context,
+        get_system_timestamps, get_compliance_info
+    )
     render_pulse_sidebar("control")
 
     # If onboarding not completed, show tour in main area only; rest of page stays empty
@@ -106,27 +111,39 @@ def main():
     # ---------------------------------------------------------------------------
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
 
-    # Header with executive summary and last updated - answers "What needs attention now?" in 5 seconds
+    # Header with strong typography hierarchy
     col_title, col_updated = st.columns([3, 1])
     with col_title:
-        st.markdown('<h1 class="ws-heading">Control Center</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 class="ws-page-title">Control Center</h1>', unsafe_allow_html=True)
+        
+        # Executive summary line - answers "What needs attention now?" in 5 seconds
+        total_monitored = len(hypotheses)
+        total_need_decision = n_pending + n_suppressed
+        total_batch_eligible = len(undecided_amber)
+        
+        st.markdown(f"""
+        <div class="ws-secondary" style="font-size: 1rem; margin-top: 0.5rem;">
+        {total_monitored} {ITEM_TERMINOLOGY.lower()} monitored • {total_need_decision} require human review • {total_batch_eligible} eligible for batch approval
+        </div>
+        """, unsafe_allow_html=True)
+    
     with col_updated:
-        st.markdown(f"**Last Updated:** {get_last_updated()}")
+        timestamps = get_system_timestamps()
+        compliance = get_compliance_info()
+        st.markdown(f"""
+        <div class="ws-micro" style="text-align: right;">
+        <div>Last updated: {timestamps['last_updated']}</div>
+        <div>Model: {compliance['model_version']} | Status: {compliance['compliance_status']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # Executive summary line
-    total_monitored = len(hypotheses)
-    total_need_decision = n_pending + n_suppressed
-    total_batch_eligible = len(undecided_amber)
-    
-    st.markdown(f"""
-    **{total_monitored} {ITEM_TERMINOLOGY.lower()} monitored • {total_need_decision} require human review • {total_batch_eligible} eligible for batch approval**
-    """)
-    st.markdown("---")
+    # Subtle divider instead of harsh line
+    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
-    # System Health KPIs - grouped Operational vs Impact
-    st.markdown("### System Health")
+    # System Health KPIs - grouped Operational vs Impact with strong typography
+    st.markdown('<div class="ws-section-header">System Health</div>', unsafe_allow_html=True)
     
-    st.markdown("**Operational**")
+    st.markdown('<div class="ws-subsection">Operational</div>', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         render_kpi_card("Active", format_number(len(filtered)))
@@ -139,8 +156,8 @@ def main():
         render_kpi_card("Suppressed", format_number(n_suppressed),
                        f"+{n_suppressed}" if n_suppressed > 0 else None, "negative" if n_suppressed > 0 else "neutral")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("**Impact**")
+    st.markdown('<div style="margin: 1.5rem 0;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="ws-subsection">Impact</div>', unsafe_allow_html=True)
     col5, col6 = st.columns(2)
     with col5:
         net_uplift = exp_summary.get("net_uplift", 0.43)
@@ -149,10 +166,10 @@ def main():
         projected_aua = exp_summary.get("projected_aua", 22697)
         render_kpi_card("Projected AUA Impact", format_currency(projected_aua))
 
-    st.markdown("---")
+    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
     # Top Actions Required (HERO SECTION - most important)
-    st.markdown("### Top Actions Required")
+    st.markdown('<div class="ws-section-header">Top Actions Required</div>', unsafe_allow_html=True)
     
     actions_rendered = 0
     
@@ -212,37 +229,49 @@ def main():
             "🎯"
         )
 
-    st.markdown("---")
+    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
-    # Strategic Levers (compressed, not dominant)
-    st.markdown("### Strategic Levers")
+    # System Maturity Signals (Critical for shippable feel)
+    col_left, col_right = st.columns(2)
     
-    # Single compact summary instead of 4 columns
-    regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Volatile"
+    with col_left:
+        st.markdown('<div class="ws-section-header">System Status</div>', unsafe_allow_html=True)
+        
+        # Show explicit guardrails for trust
+        render_governance_constraints()
+        
+        # Strategic Levers (compressed, not dominant)
+        regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Volatile"
+        
+        st.markdown(f"""
+        <div class="ws-secondary" style="margin-top: 1rem;">
+        <strong>Macro:</strong> {regime} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix})<br>
+        <strong>Governance:</strong> Green >0.90 | Amber 0.70–0.90 | Red <0.70<br>
+        <strong>Uplift Clamp:</strong> [-25%, +20%]
+        </div>
+        """, unsafe_allow_html=True)
     
-    try:
-        artifacts = load_model_artifacts()
-        precision_issues = []
-        precision_labels = {"aspiring_affluent": "MB", "sticky_family_leader": "FSC", "generation_nerd": "LA"}
+    with col_right:
+        st.markdown('<div class="ws-section-header">Model Health</div>', unsafe_allow_html=True)
         
-        for p in ["aspiring_affluent", "sticky_family_leader", "generation_nerd"]:
-            precision = artifacts.get(p, {}).get("metrics", {}).get("precision", 1.0)
-            label = precision_labels.get(p, p[:2].upper())
-            if precision < 0.75:
-                precision_issues.append(f"⚠ {label} {precision:.2f}")
-            else:
-                precision_issues.append(f"✓ {label} {precision:.2f}")
+        # Show model confidence with operational context
+        try:
+            artifacts = load_model_artifacts()
+            precision_labels = {"aspiring_affluent": "Momentum Builder", "sticky_family_leader": "Full-Stack Client", "generation_nerd": "Legacy Architect"}
+            
+            for p in ["aspiring_affluent", "sticky_family_leader", "generation_nerd"]:
+                precision = artifacts.get(p, {}).get("metrics", {}).get("precision", 1.0)
+                label = precision_labels.get(p, p)
+                render_model_confidence_context(label, precision)
+        except:
+            st.markdown('<div class="ws-secondary">Model metrics unavailable</div>', unsafe_allow_html=True)
         
-        precision_summary = " | ".join(precision_issues)
-    except:
-        precision_summary = "Unknown"
-
-    st.markdown(f"""
-    **Macro:** {regime} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix})  
-    **Governance:** Green >0.90 | Amber 0.70–0.90 | Red <0.70  
-    **Uplift Clamp:** [-25%, +20%]  
-    **Model Precision:** {precision_summary}
-    """)
+        # Audit trail summary with compliance link
+        render_audit_summary()
+        
+        # Quick access to full compliance dashboard
+        if st.button("📋 View Full Compliance Dashboard", key="compliance_dashboard"):
+            st.switch_page("pages/3_compliance.py")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
