@@ -179,3 +179,24 @@ def get_feedback_stats() -> dict:
         "pending": pending,
         "approval_rate": round(approved / max(approved + rejected, 1), 3),
     }
+
+
+def get_recent_feedback(limit: int = 10) -> list[dict]:
+    """Return the last N feedback rows for the Audit Log. Columns: timestamp, user_id, action, governance_tier, reason."""
+    conn = _get_conn()
+    rows = conn.execute(
+        """SELECT timestamp, user_id, action, governance_tier, reason
+           FROM human_feedback ORDER BY id DESC LIMIT ?""",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "timestamp": r[0],
+            "user_id": r[1],
+            "action": r[2],
+            "governance_tier": r[3] or "",
+            "reason": r[4] or "",
+        }
+        for r in rows
+    ]

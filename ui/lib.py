@@ -732,6 +732,44 @@ def inject_ws_theme():
         .ws-model-status .target {{ color: var(--ws-muted); }}
         .ws-model-status .current {{ font-weight: 600; }}
         .ws-model-status .action {{ color: var(--ws-amber); font-weight: 500; }}
+        
+        /* PART 1: Reduce top spacing so header sits above the fold */
+        .ws-main {{ padding-top: 0.75rem !important; }}
+        .ws-page-title {{ margin-top: 0 !important; margin-bottom: 0.35rem !important; }}
+        [data-testid="stAppViewContainer"] {{ padding-top: 1rem !important; }}
+        
+        /* PART 2: Audit Status compact horizontal layout */
+        .ws-audit-status-row {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 0.5rem; }}
+        .ws-audit-kpi {{ display: flex; flex-direction: column; gap: 0.15rem; }}
+        .ws-audit-kpi-label {{ font-size: 0.7rem; color: var(--ws-muted); text-transform: uppercase; }}
+        .ws-audit-kpi-value {{ font-weight: 600; font-size: 0.9rem; }}
+        
+        /* Case Queue — operational cards (Decision Console) */
+        .case-card {{ 
+            background: var(--ws-off-white);
+            border-radius: var(--ws-radius);
+            padding: 0.85rem 1rem;
+            margin-bottom: 0.6rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.06);
+            border-left-width: 4px;
+        }}
+        .case-card.tier-red {{ border-left-color: #dc2626; }}
+        .case-card.tier-amber {{ border-left-color: #d97706; }}
+        .case-card.tier-green {{ border-left-color: #16a34a; }}
+        .case-card-left {{ font-size: 0.8rem; }}
+        .case-card-center {{ font-size: 0.85rem; }}
+        .case-card-right {{ display: flex; align-items: center; gap: 0.5rem; }}
+        .tier-segment {{ 
+            display: inline-flex; border-radius: 6px; padding: 2px; 
+            background: var(--ws-stone); gap: 2px;
+        }}
+        .tier-segment-btn {{ 
+            padding: 0.4rem 0.75rem; border-radius: 4px; font-size: 0.85rem; font-weight: 500;
+            border: none; cursor: pointer; background: transparent;
+        }}
+        .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }}
+        .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -853,19 +891,30 @@ def render_empty_state(title: str, subtitle: str, icon: str = "📊"):
     """, unsafe_allow_html=True)
 
 
-def format_currency(amount: float) -> str:
-    """Format currency with appropriate precision."""
-    if abs(amount) >= 1_000_000:
-        return f"${amount/1_000_000:.1f}M"
-    elif abs(amount) >= 1_000:
-        return f"${amount/1_000:.0f}k"
-    else:
-        return f"${amount:.0f}"
+def format_currency(amount: float, decimals: int = 2) -> str:
+    """Format currency for display. Use with st.metric() or st.write() only—never in st.markdown() (avoids $ italics)."""
+    try:
+        x = float(amount)
+    except (TypeError, ValueError):
+        return "—"
+    if abs(x) >= 1_000_000:
+        return f"${x/1_000_000:.1f}M"
+    if abs(x) >= 1_000:
+        return f"${x/1_000:.0f}k"
+    return f"${x:,.2f}".replace(".00", "")
+
+
+def format_percent(value: float, decimals: int = 2) -> str:
+    """Format percentage; max 2 decimals. Use for display only."""
+    try:
+        return f"{float(value):.{decimals}%}"
+    except (TypeError, ValueError):
+        return "—"
 
 
 def format_percentage(value: float) -> str:
     """Format percentage with 2 decimal places."""
-    return f"{value:.2%}"
+    return format_percent(value, 2)
 
 
 def format_number(value: float) -> str:
@@ -933,9 +982,8 @@ def compute_priority_score(hypothesis: dict, metrics_df: pd.DataFrame = None) ->
 # ---------------------------------------------------------------------------
 
 def render_audit_summary():
-    """Render audit trail summary for system maturity."""
+    """Render audit trail summary for system maturity (legacy bullet list). Prefer render_audit_status() for Decision Console."""
     compliance = get_compliance_info()
-    
     st.markdown(f"""
     <div class="ws-audit-summary">
         <div class="ws-subsection" style="margin: 0 0 0.75rem 0;">Audit & Compliance</div>
@@ -945,6 +993,70 @@ def render_audit_summary():
             <span class="ws-status-indicator healthy"></span>Status: {compliance['compliance_status']}<br>
             <span class="ws-status-indicator healthy"></span>Last export: {compliance['last_export']} | Next audit: {compliance['next_audit_due']}
         </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_audit_status():
+    """Compact executive-grade Audit Status trust panel. <20% above-the-fold."""
+    compliance = get_compliance_info()
+    status = compliance["compliance_status"]
+    badge_class = "opportunity" if status == "COMPLIANT" else "risk"
+    override_pct = compliance["override_rate_30d"]  # already a number like 10.7
+    st.markdown('<div class="ws-subsection" style="margin-bottom: 0.5rem;">Audit Status</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="ws-audit-status-row">
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Decision Logging</span><span class="ws-audit-kpi-value">100%</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Retention</span><span class="ws-audit-kpi-value">{compliance["data_retention_days"]} days</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Override Rate (30d)</span><span class="ws-audit-kpi-value">{override_pct:.1f}%</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Compliance</span><span class="ws-badge {badge_class}">{status}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Last Export</span><span class="ws-audit-kpi-value">{compliance["last_export"]}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Next Audit</span><span class="ws-audit-kpi-value">{compliance["next_audit_due"]}</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_client_snapshot(hypothesis: dict, features: pd.DataFrame = None, last_reviewed: str = None):
+    """Client Snapshot summary at top of profile: Persona, AUA, Signal, Confidence, Governance, Projected Impact, Liquidity, Last Reviewed."""
+    user_id = hypothesis.get("user_id", "")
+    gov = hypothesis.get("governance", {})
+    trace = hypothesis.get("traceability", {})
+    sb = trace.get("spending_buffer", {})
+    tp = trace.get("target_product", {})
+
+    # AUA: from latest feature row or placeholder
+    aua_val = "—"
+    if features is not None and not features.empty and "user_id" in features.columns and "aua_current" in features.columns:
+        uf = features[features["user_id"] == user_id]
+        if not uf.empty:
+            aua_val = format_currency(float(uf.sort_values("month").iloc[-1]["aua_current"]))
+
+    persona = TIER_LABELS.get(hypothesis.get("persona_tier", ""), hypothesis.get("persona_tier", "—"))
+    signal = SIGNAL_LABELS.get(hypothesis.get("signal", ""), hypothesis.get("signal", "—"))
+    conf = hypothesis.get("confidence")
+    conf_str = format_percent(conf, 2) if conf is not None else "—"
+    gov_label = gov.get("label", gov.get("tier", "—"))
+    gov_icon = GOV_TIER_ICONS.get(gov.get("tier", ""), "")
+    projected = tp.get("suggested_amount") or tp.get("projected_yield") or "—"
+    if isinstance(projected, (int, float)):
+        projected = format_currency(projected)
+    runway = sb.get("months_of_runway")
+    liquidity = f"{runway:.1f} mo runway" if runway is not None else "—"
+    if runway is not None and runway < 3:
+        liquidity += " (low)"
+    last_rev = last_reviewed or "—"
+
+    st.markdown('<div class="ws-subsection" style="margin-bottom: 0.5rem;">Client Snapshot</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="ws-audit-status-row ws-client-snapshot">
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Persona</span><span class="ws-audit-kpi-value">{persona}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">AUA</span><span class="ws-audit-kpi-value">{aua_val}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Active Signal</span><span class="ws-audit-kpi-value">{signal}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Confidence</span><span class="ws-audit-kpi-value">{conf_str}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Governance</span><span class="ws-audit-kpi-value">{gov_icon} {gov_label}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Projected Impact</span><span class="ws-audit-kpi-value">{projected}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Liquidity</span><span class="ws-audit-kpi-value">{liquidity}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Last Reviewed</span><span class="ws-audit-kpi-value">{last_rev}</span></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1304,12 +1416,24 @@ def render_pulse_sidebar(current_page: str):
             key="pulse_confidence_min",
         )
 
+    # Static scenario panels (no interactive sliders — executive summary only)
     with sb.expander("Scenario", expanded=False):
-        boc_rate = st.slider("BoC Prime Rate (%)", 2.0, 8.0, macro.boc_prime_rate, 0.25)
-        vix = st.slider("Market Volatility (VIX)", 10, 50, int(macro.vix), 1)
-        if boc_rate != macro.boc_prime_rate or vix != macro.vix:
-            st.session_state.macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix)
-            st.rerun()
+        st.caption("BoC Rate Scenarios")
+        boc_data = [
+            ("Current (Baseline)", f"{macro.boc_prime_rate:.2f}%", "—", "0%", "—"),
+            ("+1% Rate Increase", f"{macro.boc_prime_rate + 1:.2f}%", "-2 to -5%", "~8%", "-3%"),
+            ("-1% Rate Decrease", f"{max(2, macro.boc_prime_rate - 1):.2f}%", "+1 to +3%", "~2%", "+2%"),
+        ]
+        df_boc = pd.DataFrame(boc_data, columns=["Scenario", "Rate", "Confidence impact", "Pathway suppression %", "Projected AUA change"])
+        st.dataframe(df_boc, use_container_width=True, hide_index=True)
+        st.caption("VIX Scenarios")
+        vix_data = [
+            ("Current (Baseline)", f"{macro.vix:.0f}", "—", "—", "—"),
+            ("High Volatility (VIX +10)", f"{min(50, macro.vix + 10):.0f}", "Suppress", "Higher", "Growth deprioritized"),
+            ("Low Volatility (VIX -10)", f"{max(10, macro.vix - 10):.0f}", "Allow", "Lower", "Growth prioritized"),
+        ]
+        df_vix = pd.DataFrame(vix_data, columns=["Scenario", "VIX", "Private market", "Risk suppression", "Growth"])
+        st.dataframe(df_vix, use_container_width=True, hide_index=True)
 
     sb.markdown("---")
 

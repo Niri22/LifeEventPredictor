@@ -20,7 +20,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.api.feedback import record_feedback
+from src.api.feedback import record_feedback, get_recent_feedback
 from ui.lib import (
     TIER_LABELS,
     TIER_COLORS,
@@ -41,9 +41,11 @@ from ui.lib import (
     render_governance_badge,
     show_micro_feedback_toast,
     get_system_timestamps,
-    render_audit_summary,
+    render_audit_status,
     render_empty_state,
     get_compliance_info,
+    render_client_snapshot,
+    format_currency,
     ITEM_TERMINOLOGY,
 )
 
@@ -56,6 +58,10 @@ if "decisions" not in st.session_state:
     st.session_state.decisions = {}
 if "macro" not in st.session_state:
     st.session_state.macro = get_default_macro()
+if "pulse_queue_tier" not in st.session_state:
+    st.session_state.pulse_queue_tier = "red"
+if "pulse_confirm_bulk" not in st.session_state:
+    st.session_state.pulse_confirm_bulk = False
 
 
 def _ensure_hypotheses():
@@ -136,15 +142,28 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
     st.divider()
     user_id = hypothesis["user_id"]
     gov = hypothesis.get("governance", {})
+    existing = st.session_state.decisions.get(user_id, {})
+    last_reviewed = existing.get("timestamp", "") if existing else None
+    if last_reviewed:
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(last_reviewed.replace("Z", "+00:00"))
+            last_reviewed = dt.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            pass
+
+    # Client Snapshot — full picture in <5 seconds
+    render_client_snapshot(hypothesis, features, last_reviewed=last_reviewed)
+    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
     # ======================================================================
-    # TOP — Case Identity
+    # Case Identity (detailed)
     # ======================================================================
     st.markdown("##### Case Identity")
     ci1, ci2, ci3, ci4 = st.columns(4)
     with ci1:
         st.markdown("**Persona**")
-        st.markdown(f":{TIER_COLORS.get(hypothesis['persona_tier'], '#999')}[{TIER_LABELS.get(hypothesis['persona_tier'], '')}]")
+        st.caption(TIER_LABELS.get(hypothesis["persona_tier"], hypothesis.get("persona_tier", "—")))
     with ci2:
         st.markdown("**Signal**")
         st.markdown(f"**{SIGNAL_LABELS.get(hypothesis['signal'], hypothesis['signal'])}**")
@@ -159,7 +178,8 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
 
     dist = hypothesis.get("distance_to_upgrade") or {}
     if dist.get("cohort_label"):
-        st.caption(f"**Status path:** {dist['cohort_label']} — Gap: ${dist.get('gap_dollars', 0):,.0f} to {dist.get('next_milestone_name', '')}")
+        gap_val = dist.get("gap_dollars", 0) or 0
+        st.write("**Status path:**", dist["cohort_label"], "— Gap:", format_currency(gap_val), "to", dist.get("next_milestone_name", ""))
 
     if hypothesis.get("guardrail_reasons"):
         st.warning("**Risk Flags:** " + " | ".join(hypothesis["guardrail_reasons"]))
@@ -191,7 +211,7 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
         if tp.get("projected_yield"):
             st.success(f"Projected Yield: {tp['projected_yield']}")
         if tp.get("suggested_amount"):
-            metric_with_info("suggested_amount", f"${tp['suggested_amount']:,.0f}")
+            metric_with_info("suggested_amount", format_currency(float(tp["suggested_amount"])))
         audit = trace.get("audit_log", [])
         if audit:
             top_features = sorted(audit, key=lambda x: x.get("importance", 0), reverse=True)[:3]
@@ -201,8 +221,8 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
         st.markdown("**Liquidity Snapshot**")
         runway = sb["months_of_runway"]
         runway_icon = "normal" if runway >= 6 else ("off" if runway >= 3 else "inverse")
-        metric_with_info("liquid_cash", f"${sb['liquid_cash']:,.0f}")
-        metric_with_info("monthly_burn_rate", f"${sb['monthly_burn_rate']:,.0f}")
+        metric_with_info("liquid_cash", format_currency(float(sb["liquid_cash"])))
+        metric_with_info("monthly_burn_rate", format_currency(float(sb["monthly_burn_rate"])))
         metric_with_info("months_of_runway", f"{runway:.1f}", delta_color=runway_icon)
 
     with imp3:
@@ -370,9 +390,9 @@ def main():
         )
         st.markdown("</div>", unsafe_allow_html=True)
         return
-    
-    # Show audit trail summary at top for system maturity
-    render_audit_summary()
+
+    # Executive-grade Audit Status panel (compact, above the fold)
+    render_audit_status()
 
     red = [h for h in filtered if h.get("governance", {}).get("tier") == "red"]
     amber = [h for h in filtered if h.get("governance", {}).get("tier") == "amber"]
@@ -391,7 +411,33 @@ def main():
     with tab_green:
         _render_queue(green, "green", features)
 
+    # Audit Log — last 10 actions (from SQLite or session)
+    st.markdown('<div class="ws-section-header" style="margin-top: 1.5rem;">Audit Log</div>', unsafe_allow_html=True)
+    try:
+        recent = get_recent_feedback(limit=10)
+    except Exception:
+        recent = []
+    if not recent:
+        decisions = st.session_state.get("decisions", {})
+        items = [
+            {"timestamp": v.get("timestamp", ""), "user_id": k, "action": v.get("action", ""), "governance_tier": v.get("persona_tier", ""), "reason": ""}
+            for k, v in list(decisions.items())[-10:]
+        ]
+        items.reverse()
+    else:
+        items = recent
+    if items:
+        log_df = pd.DataFrame(items)
+        log_df = log_df.rename(columns={"timestamp": "Timestamp", "user_id": "User ID", "action": "Action", "governance_tier": "Tier", "reason": "Reason"})
+        st.dataframe(log_df, use_container_width=True, hide_index=True, height=280)
+    else:
+        st.caption("No audit entries yet. Decisions will appear here.")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-main()
+try:
+    main()
+except Exception:
+    st.error("Something went wrong. Check filters or data availability.")
+    st.info("If this persists, check logs.")

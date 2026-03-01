@@ -28,6 +28,8 @@ from ui.lib import (
     load_model_artifacts,
     get_model_reliability_table,
     load_data,
+    format_currency,
+    format_percent,
     MIDNIGHT,
     WS_GOLD,
     PERSONAS,
@@ -98,7 +100,7 @@ def main():
                 persona_label = experiment_persona_label(str(top_row["persona_tier"]))
                 product_label = experiment_product_label(str(top_row["product_code"]))
                 uplift_val = f"{float(top_row['uplift_score']) * 100:+.1f}%"
-                aua_val = f"${float(top_row['delta_aua_uplift']):,.0f}"
+                aua_val = format_currency(float(top_row["delta_aua_uplift"]))
                 render_kpi_card("Top Performing Pathway", f"{persona_label} + {product_label}", f"{uplift_val} Conversion | {aua_val} AUA", "positive")
             else:
                 render_kpi_card("Top Performing Pathway", "—", "No significant pathways")
@@ -108,7 +110,7 @@ def main():
             else:
                 render_kpi_card("Suppressed Pathways", "0", "No suppressed pathways detected", "positive")
         with k4:
-            render_kpi_card("Projected AUA Impact", f"${projected_aua:,.0f}", "Total expected growth", "positive" if projected_aua >= 0 else "negative")
+            render_kpi_card("Projected AUA Impact", format_currency(projected_aua), "Total expected growth", "positive" if projected_aua >= 0 else "negative")
 
         st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
 
@@ -150,7 +152,7 @@ def main():
                 with dd1:
                     st.markdown("**Impact**")
                     _colored_metric("Conversion Lift", float(r["conversion_uplift"]), fmt="{:+.2%}")
-                    _colored_metric("AUA Delta", float(r["delta_aua_uplift"]), fmt="${:,.0f}")
+                    st.metric("AUA Delta", format_currency(float(r["delta_aua_uplift"])))
                     _colored_metric("Retention Lift", float(r["retention_uplift"]), fmt="{:+.2%}")
                 with dd2:
                     st.markdown("**Risk**")

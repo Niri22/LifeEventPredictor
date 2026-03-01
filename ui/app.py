@@ -77,7 +77,14 @@ def main():
         show_onboarding_dialog()
         st.stop()
 
-    profiles, txns, features = load_data()
+    try:
+        profiles, txns, features = load_data()
+    except Exception:
+        st.markdown('<div class="ws-main">', unsafe_allow_html=True)
+        render_empty_state("No data available.", "Awaiting signals. Ensure data is generated or check configuration.", "📊")
+        st.markdown("</div>", unsafe_allow_html=True)
+        return
+
     macro = st.session_state.macro
     tier_filter = st.session_state.get("pulse_tier_filter", [k for k in TIER_LABELS if k != "not_eligible"])
     confidence_min = st.session_state.get("pulse_confidence_min", 0.5)
@@ -110,8 +117,11 @@ def main():
     amber_cases = [h for h in filtered if h.get("governance", {}).get("tier") == "amber"]
     undecided_amber = [h for h in amber_cases if h["user_id"] not in decided_ids]
 
-    metrics_df = get_experiment_metrics()
-    exp_summary = get_experiment_summary(metrics_df) if not metrics_df.empty else {}
+    try:
+        metrics_df = get_experiment_metrics()
+    except Exception:
+        metrics_df = __import__("pandas").DataFrame()
+    exp_summary = get_experiment_summary(metrics_df) if (metrics_df is not None and not getattr(metrics_df, "empty", True)) else {}
 
     # ---------------------------------------------------------------------------
     # Main content
@@ -167,10 +177,16 @@ def main():
     st.markdown('<div class="ws-subsection">Impact</div>', unsafe_allow_html=True)
     col5, col6 = st.columns(2)
     with col5:
-        net_uplift = exp_summary.get("net_uplift", 0.43)
+        try:
+            net_uplift = float(exp_summary.get("net_uplift", 0.43) or 0.43)
+        except (TypeError, ValueError):
+            net_uplift = 0.43
         render_kpi_card("Net Uplift (30d)", f"+{net_uplift:.2f}", "composite score", "positive")
     with col6:
-        projected_aua = exp_summary.get("projected_aua", 22697)
+        try:
+            projected_aua = float(exp_summary.get("projected_aua", 22697) or 22697)
+        except (TypeError, ValueError):
+            projected_aua = 22697
         render_kpi_card("Projected AUA Impact", format_currency(projected_aua))
 
     st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
@@ -198,14 +214,17 @@ def main():
             st.switch_page("pages/1_decision_console.py")
         actions_rendered += 1
     
-    # Growth opportunity
+    # Growth opportunity (top_row may be a pandas Series — avoid truth check; use dict for .get())
     top_pathway = exp_summary.get("top_row")
-    if top_pathway and actions_rendered < 3:
-        persona_label = experiment_persona_label(str(top_pathway.get('persona_tier', 'Unknown')))
-        product_label = experiment_product_label(str(top_pathway.get('product_code', 'Unknown')))
-        uplift_pct = float(top_pathway.get("uplift_score", 0)) * 100
-        projected_aua_growth = float(top_pathway.get("delta_aua_uplift", 0))
-        
+    if top_pathway is not None and actions_rendered < 3:
+        row = top_pathway.to_dict() if hasattr(top_pathway, "to_dict") else top_pathway
+        try:
+            persona_label = experiment_persona_label(str(row.get("persona_tier", "Unknown")))
+            product_label = experiment_product_label(str(row.get("product_code", "Unknown")))
+            uplift_pct = float(row.get("uplift_score", 0) or 0) * 100
+            projected_aua_growth = float(row.get("delta_aua_uplift", 0) or 0)
+        except (TypeError, ValueError):
+            persona_label, product_label, uplift_pct, projected_aua_growth = "—", "—", 0.0, 0.0
         if render_action_card(
             f"⬆ {persona_label} + {product_label} showing +{uplift_pct:.1f}% uplift",
             f"Projected {format_currency(projected_aua_growth)} AUA impact",
@@ -284,4 +303,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        st.error("Something went wrong. No data or configuration may be available.")
+        st.info("If this persists, check logs. Ensure data is generated and paths are correct.")
