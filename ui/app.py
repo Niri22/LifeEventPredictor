@@ -134,38 +134,18 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ── COMMAND BAR — left: summary text, right: primary + secondary buttons ──
-    cmd_text, cmd_btns = st.columns([3, 2])
-    with cmd_text:
-        st.markdown(
-            f'<div style="font-size:0.9rem;color:#64748b;padding-top:0.35rem;">'
-            f'<strong style="color:#0f172a;">{len(red_cases)}</strong> High-Risk '
-            f'<span style="color:#cbd5e1;">·</span> '
-            f'<strong style="color:#0f172a;">{len(undecided_amber)}</strong> Amber '
-            f'<span style="color:#cbd5e1;">·</span> '
-            f'<strong style="color:#0f172a;">{len(green_cases)}</strong> Green '
-            f'<span style="color:#cbd5e1;">·</span> '
-            f'{format_currency(projected_aua)} at stake</div>',
-            unsafe_allow_html=True,
-        )
-    with cmd_btns:
-        b1, b2 = st.columns(2)
-        with b1:
-            if len(undecided_red) > 0:
-                st.markdown('<div class="btn-urgent">', unsafe_allow_html=True)
-                if st.button(f"Start Review ({len(undecided_red)})", key="cmd_red"):
-                    st.session_state.pulse_queue_tier = "red"
-                    st.switch_page("pages/1_decision_console.py")
-                st.markdown("</div>", unsafe_allow_html=True)
-        with b2:
-            if len(undecided_amber) > 0:
-                st.markdown('<div class="btn-amber">', unsafe_allow_html=True)
-                if st.button(f"Approve Amber ({len(undecided_amber)})", key="cmd_amber"):
-                    st.session_state.pulse_queue_tier = "amber"
-                    st.switch_page("pages/1_decision_console.py")
-                st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
+    # ── SUMMARY LINE — counts only, no buttons ──
+    st.markdown(
+        f'<div style="font-size:0.85rem;color:#64748b;margin-bottom:0.5rem;">'
+        f'<strong style="color:#0f172a;">{len(red_cases)}</strong> High-Risk '
+        f'<span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>'
+        f'<strong style="color:#0f172a;">{len(undecided_amber)}</strong> Amber '
+        f'<span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>'
+        f'<strong style="color:#0f172a;">{len(green_cases)}</strong> Green '
+        f'<span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>'
+        f'{format_currency(projected_aua)} at stake</div>',
+        unsafe_allow_html=True,
+    )
 
     # ── ACTION STACK — each card is one st.columns row: [text | button] ──
     st.markdown('<div class="ws-section-header">Action Stack</div>', unsafe_allow_html=True)

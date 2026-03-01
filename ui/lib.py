@@ -733,10 +733,14 @@ def inject_ws_theme():
         .ws-model-status .current {{ font-weight: 600; }}
         .ws-model-status .action {{ color: var(--ws-amber); font-weight: 500; }}
         
-        /* PART 1: Reduce top spacing so header sits above the fold */
-        .ws-main {{ padding-top: 0.75rem !important; }}
-        .ws-page-title {{ margin-top: 0 !important; margin-bottom: 0.35rem !important; }}
-        [data-testid="stAppViewContainer"] {{ padding-top: 1rem !important; }}
+        /* Tight spacing — control room feel, not document */
+        .ws-main {{ padding-top: 0.4rem !important; padding-bottom: 1.5rem !important; }}
+        .ws-page-title {{ margin-top: 0 !important; margin-bottom: 0.2rem !important; font-size: 1.6rem !important; }}
+        [data-testid="stAppViewContainer"] {{ padding-top: 0.5rem !important; }}
+        [data-testid="block-container"] {{ padding-top: 0.5rem !important; padding-bottom: 1rem !important; }}
+        .ws-secondary {{ margin-bottom: 0.1rem !important; }}
+        .ws-divider {{ margin: 0.6rem 0 !important; }}
+        .ws-section-header {{ margin-top: 0.25rem !important; margin-bottom: 0.3rem !important; }}
         
         /* PART 2: Audit Status compact horizontal layout */
         .ws-audit-status-row {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 0.5rem; }}
@@ -816,9 +820,7 @@ def inject_ws_theme():
             background: var(--ws-stone) !important;
         }}
         
-        /* Tighter vertical rhythm for Control Center */
-        .ws-divider {{ margin: 1rem 0; }}
-        .ws-section-header {{ margin-bottom: 0.4rem; }}
+        /* Tighter vertical rhythm (overrides applied per-page via scoped rules above) */
         
         /* Compact KPI row — small, under actions */
         .ws-kpi-compact {{
