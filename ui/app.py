@@ -34,6 +34,19 @@ from ui.lib import (
     experiment_persona_label,
     experiment_product_label,
     load_config,
+    render_pulse_sidebar, 
+    render_kpi_card, 
+    render_action_card, 
+    render_empty_state, 
+    format_currency, 
+    format_number, 
+    get_last_updated, 
+    ITEM_TERMINOLOGY,
+    render_governance_constraints, 
+    render_audit_summary, 
+    render_model_confidence_context,
+    get_system_timestamps, 
+    get_compliance_info
 )
 from ui.onboarding import show_onboarding_dialog, should_show_onboarding
 
@@ -57,12 +70,6 @@ def main():
         st.session_state.decisions = {}
 
     # Sidebar first so Control Center / Decision Console / Growth Engine always load when clicked
-    from ui.lib import (
-        render_pulse_sidebar, render_kpi_card, render_action_card, render_empty_state, 
-        format_currency, format_number, get_last_updated, ITEM_TERMINOLOGY,
-        render_governance_constraints, render_audit_summary, render_model_confidence_context,
-        get_system_timestamps, get_compliance_info
-    )
     render_pulse_sidebar("control")
 
     # If onboarding not completed, show tour in main area only; rest of page stays empty
