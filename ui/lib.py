@@ -800,6 +800,28 @@ def inject_ws_theme():
             background: #fafafa !important;
             border-radius: 6px !important;
         }}
+        /* Right column: right-align the button container (stElementContainer) in its parent (stVerticalBlock) */
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) > div:last-child,
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch) > div:last-child,
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth) > div:last-child {{
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            padding-right: 20px !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) > div:last-child [data-testid="stVerticalBlock"],
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch) > div:last-child [data-testid="stVerticalBlock"],
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth) > div:last-child [data-testid="stVerticalBlock"] {{
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            width: 100% !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) > div:last-child [data-testid="stElementContainer"],
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch) > div:last-child [data-testid="stElementContainer"],
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth) > div:last-child [data-testid="stElementContainer"] {{
+            margin-left: auto !important;
+        }}
         /* High-risk row: card's parent = 100% of row height */
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) > div:first-child {{
             height: 100% !important;
