@@ -239,13 +239,21 @@ def main():
     st.markdown('<div class="ws-subsection">Impact (rolling 30d)</div>', unsafe_allow_html=True)
     imp_left, imp_right = st.columns([4, 1], vertical_alignment="center")
     with imp_left:
-        st.write(f"**{format_currency(projected_aua)}** projected AUA   |   Net uplift **+{net_uplift:.2f}**")
+        top_pathway_label = ""
         if top_pathway is not None:
             try:
                 row = top_pathway.to_dict() if hasattr(top_pathway, "to_dict") else top_pathway
-                st.caption(f"Top pathway: {experiment_product_label(str(row.get('product_code', '—')))}.")
+                top_pathway_label = experiment_product_label(str(row.get("product_code", "—")))
             except Exception:
                 pass
+        pathway_line = f'<div style="font-size:0.78rem;color:#64748b;">Top pathway: {top_pathway_label}.</div>' if top_pathway_label else ""
+        st.markdown(
+            f'<div class="ws-impact-card" style="padding:0.6rem 0.9rem;">'
+            f'<div style="font-weight:600;font-size:1.0rem;">{format_currency(projected_aua)} projected AUA    ·    Net uplift +{net_uplift:.2f}</div>'
+            f'{pathway_line}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     with imp_right:
         st.markdown('<div class="btn-muted">', unsafe_allow_html=True)
         if st.button("Growth Engine", key="impact_link"):
@@ -256,16 +264,17 @@ def main():
 
     # ── COLLAPSED: System Metrics ──
     with st.expander("System Metrics", expanded=False):
-        st.markdown('<div class="ws-kpi-compact">', unsafe_allow_html=True)
-        st.markdown(f"""
-            <div class="ws-kpi-compact-item"><span class="val">{format_number(len(filtered))}</span><span class="lbl">Active</span></div>
-            <div class="ws-kpi-compact-item"><span class="val">{format_number(total_requiring_review)}</span><span class="lbl">Pending</span></div>
-            <div class="ws-kpi-compact-item"><span class="val">{format_number(len(green_cases))}</span><span class="lbl">Auto-Approved</span></div>
-            <div class="ws-kpi-compact-item"><span class="val">{format_number(len(red_cases))}</span><span class="lbl">Suppressed</span></div>
-            <div class="ws-kpi-compact-item"><span class="val">+{net_uplift:.2f}</span><span class="lbl">Net Uplift</span></div>
-            <div class="ws-kpi-compact-item"><span class="val">{format_currency(projected_aua)}</span><span class="lbl">Proj. AUA</span></div>
-        """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="ws-kpi-compact">'
+            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(len(filtered))}</span><span class="lbl">Active</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(total_requiring_review)}</span><span class="lbl">Pending</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(len(green_cases))}</span><span class="lbl">Auto-Approved</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(len(red_cases))}</span><span class="lbl">Suppressed</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="val">+{net_uplift:.2f}</span><span class="lbl">Net Uplift</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="val">{format_currency(projected_aua)}</span><span class="lbl">Proj. AUA</span></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     # ── COLLAPSED: System Status + Model Health ──
     with st.expander("System Status & Governance", expanded=False):

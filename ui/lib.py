@@ -883,6 +883,22 @@ def inject_ws_theme():
         .btn-muted .stButton > button:hover {{
             background: var(--ws-stone) !important;
         }}
+        /* Impact row: grey background card */
+        [data-testid="stHorizontalBlock"]:has(.ws-impact-card) {{
+            background: #fafafa !important;
+            border-radius: 6px !important;
+            margin-bottom: 0.4rem !important;
+            align-items: center !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-impact-card) > div:first-child {{
+            display: flex !important;
+            align-items: center !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-impact-card) > div:first-child [data-testid="stVerticalBlock"] {{
+            display: flex !important;
+            justify-content: center !important;
+            gap: 0 !important;
+        }}
         /* Impact row: right-align the Growth Engine CTA */
         [data-testid="stHorizontalBlock"]:has(.btn-muted) > div:last-child {{
             display: flex !important;
@@ -902,16 +918,20 @@ def inject_ws_theme():
         
         /* Tighter vertical rhythm (overrides applied per-page via scoped rules above) */
         
-        /* Compact KPI row — small, under actions */
+        /* Compact KPI row — horizontal, under actions */
         .ws-kpi-compact {{
-            display: flex; 
-            gap: 1.5rem; 
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 2rem;
             flex-wrap: wrap;
-            align-items: baseline;
+            align-items: flex-start;
             padding: 0.6rem 0;
         }}
         .ws-kpi-compact-item {{
-            display: flex; flex-direction: column; gap: 0.1rem;
+            display: inline-flex !important;
+            flex-direction: column;
+            gap: 0.1rem;
+            min-width: 80px;
         }}
         .ws-kpi-compact-item .val {{ font-size: 1.1rem; font-weight: 700; color: var(--ws-midnight); }}
         .ws-kpi-compact-item .lbl {{ font-size: 0.7rem; color: var(--ws-muted); text-transform: uppercase; }}
