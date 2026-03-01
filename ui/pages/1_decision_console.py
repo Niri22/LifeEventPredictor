@@ -23,7 +23,6 @@ import streamlit as st
 from src.api.feedback import record_feedback, get_recent_feedback
 from ui.lib import (
     TIER_LABELS,
-    TIER_COLORS,
     SIGNAL_LABELS,
     GOV_TIER_ICONS,
     MIDNIGHT,
@@ -33,12 +32,10 @@ from ui.lib import (
     load_precomputed_hypotheses,
     get_default_macro,
     apply_experiment_reweight,
-    build_queue_df,
+    confidence_band,
     metric_with_info,
     render_confidence_gauge,
-    confidence_band,
     render_pulse_sidebar,
-    render_governance_badge,
     show_micro_feedback_toast,
     get_system_timestamps,
     render_audit_status,
@@ -46,7 +43,6 @@ from ui.lib import (
     get_compliance_info,
     render_client_snapshot,
     format_currency,
-    ITEM_TERMINOLOGY,
 )
 
 st.set_page_config(page_title="Decision Console — W Pulse", page_icon="W", layout="wide")
@@ -81,58 +77,115 @@ def _ensure_hypotheses():
 
 
 # ---------------------------------------------------------------------------
-# Queue renderers
+# Case card — compact operational card (no dataframe)
 # ---------------------------------------------------------------------------
-def _render_queue(items: list, tier_name: str, features: pd.DataFrame):
-    if not items:
-        st.info(f"No {tier_name} items.")
-        return
-    df = build_queue_df(items)
-    selection = st.dataframe(
-        df.drop(columns=["idx"]), use_container_width=True, hide_index=True,
-        on_select="rerun", selection_mode="single-row",
-        key=f"queue_{tier_name}",
-    )
-    selected_rows = selection.selection.rows if selection.selection else []
-    if not selected_rows:
-        st.caption("Select a row to review.")
-        return
-    _render_detail(items[selected_rows[0]], features)
+def _confidence_label(confidence: float) -> str:
+    """Format as 0.00 (Band)."""
+    band_name, _ = confidence_band(confidence)
+    return f"{confidence:.2f} ({band_name})"
 
 
-def _render_amber_queue(items: list, features: pd.DataFrame):
-    if not items:
-        st.info("No amber items.")
-        return
-    undecided = [h for h in items if h["user_id"] not in st.session_state.decisions]
-    if undecided:
-        if st.button(f"Batch Approve All {len(undecided)} Amber Items", type="primary", key="batch_approve"):
-            now = datetime.now(timezone.utc).isoformat()
-            for h in undecided:
-                st.session_state.decisions[h["user_id"]] = {
-                    "action": "approved", "timestamp": now,
-                    "signal": h["signal"], "persona_tier": h["persona_tier"],
-                    "confidence": h["confidence"],
-                }
-                record_feedback(
-                    h["user_id"], h["persona_tier"], h["signal"],
-                    h["traceability"]["target_product"]["code"],
-                    h["confidence"], "amber", "approved",
-                    macro_reasons="; ".join(h.get("macro_reasons", [])),
-                )
-            st.success(f"Batch approved {len(undecided)} amber recommendations.")
-            st.rerun()
-    df = build_queue_df(items)
-    selection = st.dataframe(
-        df.drop(columns=["idx"]), use_container_width=True, hide_index=True,
-        on_select="rerun", selection_mode="single-row",
-        key="queue_amber",
-    )
-    selected_rows = selection.selection.rows if selection.selection else []
-    if not selected_rows:
-        st.caption("Select a row for detail, or use Batch Approve above.")
-        return
-    _render_detail(items[selected_rows[0]], features)
+def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
+    """Render one case as a compact card: left (tier, confidence, persona), center (id, signal, pathway, product, why), right (actions)."""
+    user_id = hypothesis["user_id"]
+    gov = hypothesis.get("governance", {})
+    tier = gov.get("tier", "green")
+    trace = hypothesis.get("traceability", {})
+    tp = trace.get("target_product", {})
+    dist = hypothesis.get("distance_to_upgrade") or {}
+    existing = st.session_state.decisions.get(user_id, {})
+    is_locked = existing.get("action") in ("approved", "rejected")
+    card_key = f"card_{tier}_{user_id}_{index}"
+
+    # Card container with tier accent
+    tier_class = f"tier-{tier}" if tier in ("red", "amber", "green") else "tier-green"
+    st.markdown(f'<div class="case-card {tier_class}">', unsafe_allow_html=True)
+    col_left, col_center, col_right = st.columns([1.2, 2.5, 1.8])
+
+    with col_left:
+        st.markdown(f'<div class="case-card-left">', unsafe_allow_html=True)
+        tier_badge = {"red": "🔴 Red", "amber": "🟠 Amber", "green": "🟢 Green"}.get(tier, "Green")
+        st.caption(f"**{tier_badge}**")
+        conf = hypothesis.get("confidence", 0)
+        st.caption(_confidence_label(conf))
+        st.caption(TIER_LABELS.get(hypothesis.get("persona_tier", ""), hypothesis.get("persona_tier", "—")))
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col_center:
+        st.markdown('<div class="case-card-center">', unsafe_allow_html=True)
+        short_id = (user_id[:14] + "…") if len(user_id) > 14 else user_id
+        st.caption(f"**{short_id}** · {SIGNAL_LABELS.get(hypothesis.get('signal', ''), hypothesis.get('signal', '—'))}")
+        pathway = dist.get("cohort_label") or "—"
+        product_name = tp.get("name") or tp.get("code") or "—"
+        st.caption(f"Pathway: {pathway} · {product_name}")
+        why = hypothesis.get("nudge") or gov.get("reason") or "No rationale."
+        if len(why) > 120:
+            why = why[:117] + "..."
+        st.caption(why)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col_right:
+        if is_locked:
+            action = existing.get("action", "").upper()
+            st.success(f"✓ {action}")
+        else:
+            b_rej, b_esc, b_app = st.columns(3)
+            with b_rej:
+                if st.button("Reject", key=f"rej_{card_key}", use_container_width=True):
+                    st.session_state.decisions[user_id] = {
+                        "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                        "confidence": hypothesis["confidence"],
+                    }
+                    record_feedback(
+                        user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                        tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
+                        macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                    )
+                    show_micro_feedback_toast("Rejected")
+                    st.rerun()
+            with b_esc:
+                if st.button("Escalate", key=f"esc_{card_key}", use_container_width=True):
+                    st.session_state.decisions[user_id] = {
+                        "action": "pending", "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                        "confidence": hypothesis["confidence"],
+                    }
+                    record_feedback(
+                        user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                        tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "pending",
+                    )
+                    show_micro_feedback_toast("Escalated")
+                    st.rerun()
+            with b_app:
+                if st.button("Approve", key=f"app_{card_key}", type="primary", use_container_width=True):
+                    st.session_state.decisions[user_id] = {
+                        "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                        "confidence": hypothesis["confidence"],
+                    }
+                    record_feedback(
+                        user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                        tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "approved",
+                        macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                    )
+                    show_micro_feedback_toast("Approved")
+                    st.rerun()
+
+    # Inline expand: View Details
+    with st.expander("View Details ▾", expanded=False, key=f"exp_{card_key}"):
+        audit = trace.get("audit_log", [])
+        if audit:
+            top_features = sorted(audit, key=lambda x: x.get("importance", 0), reverse=True)[:5]
+            st.caption("**Feature contributions:** " + ", ".join(f"{a.get('feature', '')} ({float(a.get('importance', 0)):.2f})" for a in top_features))
+        st.caption(f"**Governance:** {gov.get('label', '')} — {gov.get('reason', '—')}")
+        if hypothesis.get("macro_reasons"):
+            st.caption("**Macro impact:** " + "; ".join(hypothesis["macro_reasons"][:3]))
+        suggested = tp.get("suggested_amount")
+        if suggested is not None:
+            st.caption(f"**Projected AUA impact:** {format_currency(float(suggested))}")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -397,19 +450,75 @@ def main():
     red = [h for h in filtered if h.get("governance", {}).get("tier") == "red"]
     amber = [h for h in filtered if h.get("governance", {}).get("tier") == "amber"]
     green = [h for h in filtered if h.get("governance", {}).get("tier") == "green"]
+    tier_counts = {"red": len(red), "amber": len(amber), "green": len(green)}
+    current_tier = st.session_state.pulse_queue_tier
+    items_by_tier = {"red": red, "amber": amber, "green": green}
+    queue_items = items_by_tier.get(current_tier, [])
 
-    st.markdown('<div class="ws-section-header">Tiered Queue</div>', unsafe_allow_html=True)
-    tab_red, tab_amber, tab_green = st.tabs([
-        f"🔴 Red — Manual Review ({len(red)})",
-        f"🟡 Amber — Batch Review ({len(amber)})",
-        f"🟢 Green — Auto-Approve ({len(green)})",
-    ])
-    with tab_red:
-        _render_queue(red, "red", features)
-    with tab_amber:
-        _render_amber_queue(amber, features)
-    with tab_green:
-        _render_queue(green, "green", features)
+    # Tier segmented control (no full page reload — session state)
+    st.markdown('<div class="ws-section-header">Case Queue</div>', unsafe_allow_html=True)
+    seg_r, seg_a, seg_g = st.columns(3)
+    with seg_r:
+        if st.button(f"🔴 Red ({tier_counts['red']})", key="seg_red", use_container_width=True, type="primary" if current_tier == "red" else "secondary"):
+            st.session_state.pulse_queue_tier = "red"
+            st.rerun()
+    with seg_a:
+        if st.button(f"🟠 Amber ({tier_counts['amber']})", key="seg_amber", use_container_width=True, type="primary" if current_tier == "amber" else "secondary"):
+            st.session_state.pulse_queue_tier = "amber"
+            st.rerun()
+    with seg_g:
+        if st.button(f"🟢 Green ({tier_counts['green']})", key="seg_green", use_container_width=True, type="primary" if current_tier == "green" else "secondary"):
+            st.session_state.pulse_queue_tier = "green"
+            st.rerun()
+
+    # Review progress: require review = undecided in this tier
+    decided = st.session_state.decisions
+    in_tier = queue_items
+    undecided_in_tier = [h for h in in_tier if h["user_id"] not in decided]
+    processed_in_tier = len(in_tier) - len(undecided_in_tier)
+    total_in_tier = len(in_tier)
+    st.markdown(f'<div class="queue-progress"><strong>{len(undecided_in_tier)}</strong> cases require review · Processed: <strong>{processed_in_tier} / {total_in_tier}</strong></div>', unsafe_allow_html=True)
+    if total_in_tier > 0:
+        st.progress(processed_in_tier / total_in_tier)
+
+    # Bulk Approve All Eligible (Amber only), with confirmation
+    if current_tier == "amber" and undecided_in_tier:
+        if not st.session_state.pulse_confirm_bulk:
+            if st.button(f"Approve All Eligible ({len(undecided_in_tier)} cases)", type="primary", key="bulk_approve_btn"):
+                st.session_state.pulse_confirm_bulk = True
+                st.rerun()
+        else:
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("Confirm — Approve All", type="primary", key="bulk_confirm_yes"):
+                    now = datetime.now(timezone.utc).isoformat()
+                    for h in undecided_in_tier:
+                        st.session_state.decisions[h["user_id"]] = {
+                            "action": "approved", "timestamp": now,
+                            "signal": h["signal"], "persona_tier": h["persona_tier"],
+                            "confidence": h["confidence"],
+                        }
+                        record_feedback(
+                            h["user_id"], h["persona_tier"], h["signal"],
+                            h["traceability"]["target_product"]["code"],
+                            h["confidence"], "amber", "approved",
+                            macro_reasons="; ".join(h.get("macro_reasons", [])),
+                        )
+                    st.session_state.pulse_confirm_bulk = False
+                    show_micro_feedback_toast(f"Approved {len(undecided_in_tier)} cases")
+                    st.rerun()
+            with c2:
+                if st.button("Cancel", key="bulk_confirm_no"):
+                    st.session_state.pulse_confirm_bulk = False
+                    st.rerun()
+            st.caption("Confirm bulk approval for all eligible Amber cases above.")
+
+    # Case cards (ordered by urgency: Red → Amber → Green already by tier)
+    if not queue_items:
+        st.info(f"No {current_tier} cases in queue.")
+    else:
+        for i, h in enumerate(queue_items):
+            render_case_card(h, features, i)
 
     # Audit Log — last 10 actions (from SQLite or session)
     st.markdown('<div class="ws-section-header" style="margin-top: 1.5rem;">Audit Log</div>', unsafe_allow_html=True)

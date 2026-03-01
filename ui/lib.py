@@ -770,6 +770,86 @@ def inject_ws_theme():
         }}
         .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }}
         .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
+        
+        /* System Safety Banner — single trust strip */
+        .ws-safety-banner {{
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 1rem;
+            border-radius: var(--ws-radius);
+            font-size: 0.8rem;
+            font-weight: 500;
+            flex-wrap: wrap;
+            margin-bottom: 0.25rem;
+        }}
+        .ws-safety-banner.safe {{
+            background: #F0FDF4;
+            border: 1px solid rgba(22,163,74,0.2);
+            color: #15803d;
+        }}
+        .ws-safety-banner.degraded {{
+            background: #FFFBEB;
+            border: 1px solid rgba(217,119,6,0.2);
+            color: #92400e;
+        }}
+        .ws-safety-banner .sep {{
+            color: rgba(0,0,0,0.15);
+        }}
+        
+        /* Mission Card — hero block */
+        .ws-mission-card {{
+            background: var(--ws-off-white);
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: var(--ws-radius);
+            padding: 1.5rem 1.75rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            margin-bottom: 1rem;
+        }}
+        .ws-mission-title {{ 
+            font-size: 1.25rem; font-weight: 700; color: var(--ws-midnight); 
+            margin: 0 0 0.75rem 0; 
+        }}
+        .ws-mission-line {{ 
+            font-size: 0.95rem; color: var(--ws-muted); 
+            margin: 0.25rem 0; line-height: 1.5; 
+        }}
+        .ws-mission-line strong {{ color: var(--ws-midnight); }}
+        .ws-mission-impact {{ 
+            font-size: 0.9rem; color: var(--ws-midnight); font-weight: 600; 
+            margin-top: 0.75rem; 
+        }}
+        
+        /* Action Stack — do this, not info */
+        .ws-action-stack {{
+            background: var(--ws-off-white);
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: var(--ws-radius);
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.6rem;
+            border-left-width: 4px;
+            border-left-style: solid;
+        }}
+        .ws-action-stack.urgent {{ border-left-color: #dc2626; }}
+        .ws-action-stack.amber {{ border-left-color: #d97706; }}
+        .ws-action-stack.growth {{ border-left-color: #16a34a; }}
+        .ws-action-stack-title {{ font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }}
+        .ws-action-stack-why {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.15rem; }}
+        .ws-action-stack-impact {{ font-size: 0.85rem; font-weight: 500; color: var(--ws-midnight); }}
+        
+        /* Compact KPI row — small, under actions */
+        .ws-kpi-compact {{
+            display: flex; 
+            gap: 1.5rem; 
+            flex-wrap: wrap;
+            align-items: baseline;
+            padding: 0.6rem 0;
+        }}
+        .ws-kpi-compact-item {{
+            display: flex; flex-direction: column; gap: 0.1rem;
+        }}
+        .ws-kpi-compact-item .val {{ font-size: 1.1rem; font-weight: 700; color: var(--ws-midnight); }}
+        .ws-kpi-compact-item .lbl {{ font-size: 0.7rem; color: var(--ws-muted); text-transform: uppercase; }}
         </style>
         """,
         unsafe_allow_html=True,
