@@ -883,6 +883,22 @@ def inject_ws_theme():
         .btn-muted .stButton > button:hover {{
             background: var(--ws-stone) !important;
         }}
+        /* Impact row: right-align the Growth Engine CTA */
+        [data-testid="stHorizontalBlock"]:has(.btn-muted) > div:last-child {{
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            padding-right: 20px !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.btn-muted) > div:last-child [data-testid="stVerticalBlock"] {{
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            width: 100% !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.btn-muted) > div:last-child [data-testid="stElementContainer"] {{
+            margin-left: auto !important;
+        }}
         
         /* Tighter vertical rhythm (overrides applied per-page via scoped rules above) */
         

@@ -239,7 +239,7 @@ def main():
     st.markdown('<div class="ws-subsection">Impact (rolling 30d)</div>', unsafe_allow_html=True)
     imp_left, imp_right = st.columns([4, 1], vertical_alignment="center")
     with imp_left:
-        st.write(f"**{format_currency(projected_aua)}** projected AUA · Net uplift **+{net_uplift:.2f}**")
+        st.write(f"**{format_currency(projected_aua)}** projected AUA   |   Net uplift **+{net_uplift:.2f}**")
         if top_pathway is not None:
             try:
                 row = top_pathway.to_dict() if hasattr(top_pathway, "to_dict") else top_pathway
@@ -248,7 +248,7 @@ def main():
                 pass
     with imp_right:
         st.markdown('<div class="btn-muted">', unsafe_allow_html=True)
-        if st.button("Details → Growth Engine", key="impact_link"):
+        if st.button("Growth Engine", key="impact_link"):
             st.switch_page("pages/2_growth_engine.py")
         st.markdown("</div>", unsafe_allow_html=True)
 
