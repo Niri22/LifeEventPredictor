@@ -748,22 +748,19 @@ def inject_ws_theme():
         .ws-audit-kpi-label {{ font-size: 0.7rem; color: var(--ws-muted); text-transform: uppercase; }}
         .ws-audit-kpi-value {{ font-weight: 600; font-size: 0.9rem; }}
         
-        /* Case Queue — operational cards (Decision Console) */
-        .case-card {{ 
-            background: var(--ws-off-white);
-            border-radius: var(--ws-radius);
-            padding: 0.85rem 1rem;
-            margin-bottom: 0.6rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-            border: 1px solid rgba(0,0,0,0.06);
-            border-left-width: 4px;
+        /* Case Queue — operational cards (Decision Console) via st.container */
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red),
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber),
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{
+            border-left-width: 4px !important;
+            border-radius: var(--ws-radius) !important;
+            margin-bottom: 0.5rem !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
         }}
-        .case-card.tier-red {{ border-left-color: #dc2626; }}
-        .case-card.tier-amber {{ border-left-color: #d97706; }}
-        .case-card.tier-green {{ border-left-color: #16a34a; }}
-        .case-card-left {{ font-size: 0.8rem; }}
-        .case-card-center {{ font-size: 0.85rem; }}
-        .case-card-right {{ display: flex; align-items: center; gap: 0.5rem; }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) {{ border-left-color: #dc2626 !important; }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) {{ border-left-color: #d97706 !important; }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{ border-left-color: #16a34a !important; }}
+        .cc-tier-red, .cc-tier-amber, .cc-tier-green {{ display: none !important; }}
         .tier-segment {{ 
             display: inline-flex; border-radius: 6px; padding: 2px; 
             background: var(--ws-stone); gap: 2px;
@@ -1149,14 +1146,18 @@ def compute_priority_score(hypothesis: dict, metrics_df: pd.DataFrame = None) ->
 def render_audit_summary():
     """Render audit trail summary for system maturity (legacy bullet list). Prefer render_audit_status() for Decision Console."""
     compliance = get_compliance_info()
+    override_pct = compliance['override_rate_30d']
+    override_color = "#d97706" if override_pct > 10 else "#16a34a"
+    status = compliance['compliance_status']
+    status_color = "#16a34a" if status == "COMPLIANT" else "#dc2626"
     st.markdown(f"""
-    <div class="ws-audit-summary">
+    <div style="margin-top:0.5rem;">
         <div class="ws-subsection" style="margin: 0 0 0.75rem 0;">Audit & Compliance</div>
-        <div class="ws-secondary">
-            <span class="ws-status-indicator healthy"></span>100% decisions logged (retention: {compliance['data_retention_days']} days)<br>
-            <span class="ws-status-indicator warning"></span>Override rate: {compliance['override_rate_30d']}% (30d rolling)<br>
-            <span class="ws-status-indicator healthy"></span>Status: {compliance['compliance_status']}<br>
-            <span class="ws-status-indicator healthy"></span>Last export: {compliance['last_export']} | Next audit: {compliance['next_audit_due']}
+        <div style="background:#f1f5f9;border-radius:6px;padding:0.6rem 0.9rem;font-size:0.82rem;color:#334155;line-height:1.8;">
+            <span class="ws-status-indicator healthy"></span><strong style="color:#16a34a;">100%</strong> decisions logged (retention: <strong>{compliance['data_retention_days']}</strong> days)<br>
+            <span class="ws-status-indicator warning"></span>Override rate: <strong style="color:{override_color};">{override_pct}%</strong> (30d rolling)<br>
+            <span class="ws-status-indicator healthy"></span>Status: <span style="background:{status_color};color:white;padding:0.1rem 0.5rem;border-radius:4px;font-weight:600;font-size:0.75rem;">{status}</span><br>
+            <span class="ws-status-indicator healthy"></span>Last export: <strong>{compliance['last_export']}</strong> | Next audit: <strong>{compliance['next_audit_due']}</strong>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1269,6 +1270,7 @@ def render_model_confidence_context(persona: str, current: float, target: float 
     st.markdown(f"""
     <div style="display:flex;align-items:center;gap:0.6rem;background:{bg};border-radius:6px;padding:0.45rem 0.75rem;margin-bottom:0.35rem;font-size:0.82rem;">
         <span class="ws-status-indicator {status_class}"></span>
+        <span style="font-weight:700;color:#0f172a;min-width:110px;">{persona}</span>
         <span style="color:#64748b;">Target: {target:.2f}</span>
         <span style="font-weight:700;color:#0f172a;">Current: {current:.2f}</span>
         <span style="color:{action_color};font-weight:600;">{action}</span>

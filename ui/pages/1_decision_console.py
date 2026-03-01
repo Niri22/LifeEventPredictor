@@ -103,95 +103,77 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
     is_locked = existing.get("action") in ("approved", "rejected")
     card_key = f"card_{tier}_{user_id}_{index}"
 
-    # Card container with tier accent
-    tier_class = f"tier-{tier}" if tier in ("red", "amber", "green") else "tier-green"
-    st.markdown(f'<div class="case-card {tier_class}">', unsafe_allow_html=True)
-    col_left, col_center, col_right = st.columns([1.2, 2.5, 1.8])
+    # Card container — use st.container so Streamlit actually groups the children
+    tier_marker = f"cc-tier-{tier}" if tier in ("red", "amber", "green") else "cc-tier-green"
+    with st.container(border=True):
+        st.markdown(f'<div class="{tier_marker}"></div>', unsafe_allow_html=True)
+        col_left, col_center, col_right = st.columns([1.2, 2.5, 1.8])
 
-    with col_left:
-        st.markdown(f'<div class="case-card-left">', unsafe_allow_html=True)
-        tier_badge = {"red": "🔴 Red", "amber": "🟠 Amber", "green": "🟢 Green"}.get(tier, "Green")
-        st.caption(f"**{tier_badge}**")
-        conf = hypothesis.get("confidence", 0)
-        st.caption(_confidence_label(conf))
-        st.caption(TIER_LABELS.get(hypothesis.get("persona_tier", ""), hypothesis.get("persona_tier", "—")))
-        st.markdown("</div>", unsafe_allow_html=True)
+        with col_left:
+            tier_badge = {"red": "🔴 Red", "amber": "🟠 Amber", "green": "🟢 Green"}.get(tier, "Green")
+            st.caption(f"**{tier_badge}**")
+            conf = hypothesis.get("confidence", 0)
+            st.caption(_confidence_label(conf))
+            st.caption(TIER_LABELS.get(hypothesis.get("persona_tier", ""), hypothesis.get("persona_tier", "—")))
 
-    with col_center:
-        st.markdown('<div class="case-card-center">', unsafe_allow_html=True)
-        short_id = (user_id[:14] + "…") if len(user_id) > 14 else user_id
-        st.caption(f"**{short_id}** · {SIGNAL_LABELS.get(hypothesis.get('signal', ''), hypothesis.get('signal', '—'))}")
-        pathway = dist.get("cohort_label") or "—"
-        product_name = tp.get("name") or tp.get("code") or "—"
-        st.caption(f"Pathway: {pathway} · {product_name}")
-        why = hypothesis.get("nudge") or gov.get("reason") or "No rationale."
-        if len(why) > 120:
-            why = why[:117] + "..."
-        st.caption(why)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with col_center:
+            short_id = (user_id[:14] + "…") if len(user_id) > 14 else user_id
+            st.caption(f"**{short_id}** · {SIGNAL_LABELS.get(hypothesis.get('signal', ''), hypothesis.get('signal', '—'))}")
+            pathway = dist.get("cohort_label") or "—"
+            product_name = tp.get("name") or tp.get("code") or "—"
+            st.caption(f"Pathway: {pathway} · {product_name}")
+            why = hypothesis.get("nudge") or gov.get("reason") or "No rationale."
+            if len(why) > 120:
+                why = why[:117] + "..."
+            st.caption(why)
 
-    with col_right:
-        if is_locked:
-            action = existing.get("action", "").upper()
-            st.success(f"✓ {action}")
-        else:
-            b_rej, b_esc, b_app = st.columns(3)
-            with b_rej:
-                if st.button("Reject", key=f"rej_{card_key}", use_container_width=True):
-                    st.session_state.decisions[user_id] = {
-                        "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                        "confidence": hypothesis["confidence"],
-                    }
-                    record_feedback(
-                        user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                        tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
-                        macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
-                    )
-                    show_micro_feedback_toast("Rejected")
-                    st.rerun()
-            with b_esc:
-                if st.button("Escalate", key=f"esc_{card_key}", use_container_width=True):
-                    st.session_state.decisions[user_id] = {
-                        "action": "pending", "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                        "confidence": hypothesis["confidence"],
-                    }
-                    record_feedback(
-                        user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                        tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "pending",
-                    )
-                    show_micro_feedback_toast("Escalated")
-                    st.rerun()
-            with b_app:
-                if st.button("Approve", key=f"app_{card_key}", type="primary", use_container_width=True):
-                    st.session_state.decisions[user_id] = {
-                        "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                        "confidence": hypothesis["confidence"],
-                    }
-                    record_feedback(
-                        user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                        tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "approved",
-                        macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
-                    )
-                    show_micro_feedback_toast("Approved")
-                    st.rerun()
+        with col_right:
+            if is_locked:
+                action = existing.get("action", "").upper()
+                st.success(f"✓ {action}")
+            else:
+                b_rej, b_app = st.columns(2)
+                with b_rej:
+                    if st.button("Reject", key=f"rej_{card_key}", use_container_width=True):
+                        st.session_state.decisions[user_id] = {
+                            "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                            "confidence": hypothesis["confidence"],
+                        }
+                        record_feedback(
+                            user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                            tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
+                            macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                        )
+                        show_micro_feedback_toast("Rejected")
+                        st.rerun()
+                with b_app:
+                    if st.button("Approve", key=f"app_{card_key}", type="primary", use_container_width=True):
+                        st.session_state.decisions[user_id] = {
+                            "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                            "confidence": hypothesis["confidence"],
+                        }
+                        record_feedback(
+                            user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                            tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "approved",
+                            macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                        )
+                        show_micro_feedback_toast("Approved")
+                        st.rerun()
 
-    # Inline expand: View Details
-    with st.expander("View Details ▾", expanded=False, key=f"exp_{card_key}"):
-        audit = trace.get("audit_log", [])
-        if audit:
-            top_features = sorted(audit, key=lambda x: x.get("importance", 0), reverse=True)[:5]
-            st.caption("**Feature contributions:** " + ", ".join(f"{a.get('feature', '')} ({float(a.get('importance', 0)):.2f})" for a in top_features))
-        st.caption(f"**Governance:** {gov.get('label', '')} — {gov.get('reason', '—')}")
-        if hypothesis.get("macro_reasons"):
-            st.caption("**Macro impact:** " + "; ".join(hypothesis["macro_reasons"][:3]))
-        suggested = tp.get("suggested_amount")
-        if suggested is not None:
-            st.caption(f"**Projected AUA impact:** {format_currency(float(suggested))}")
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        # Inline expand: View Details
+        with st.expander("View Details ▾", expanded=False):
+            audit = trace.get("audit_log", [])
+            if audit:
+                top_features = sorted(audit, key=lambda x: x.get("importance", 0), reverse=True)[:5]
+                st.caption("**Feature contributions:** " + ", ".join(f"{a.get('feature', '')} ({float(a.get('importance', 0)):.2f})" for a in top_features))
+            st.caption(f"**Governance:** {gov.get('label', '')} — {gov.get('reason', '—')}")
+            if hypothesis.get("macro_reasons"):
+                st.caption("**Macro impact:** " + "; ".join(hypothesis["macro_reasons"][:3]))
+            suggested = tp.get("suggested_amount")
+            if suggested is not None:
+                st.caption(f"**Projected AUA impact:** {format_currency(float(suggested))}")
 
 
 # ---------------------------------------------------------------------------
@@ -345,7 +327,7 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
     existing = st.session_state.decisions.get(user_id, {})
     is_locked = existing.get("action") in ("approved", "rejected")
 
-    btn1, btn2, btn3 = st.columns(3)
+    btn1, btn2 = st.columns(2)
     with btn1:
         st.markdown('<div class="ws-btn-danger">', unsafe_allow_html=True)
         if st.button("Reject", use_container_width=True, disabled=is_locked, key=f"rej_{user_id}"):
@@ -363,21 +345,6 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
     with btn2:
-        st.markdown('<div class="ws-btn-secondary">', unsafe_allow_html=True)
-        if st.button("Escalate / Pending", use_container_width=True, disabled=is_locked, key=f"esc_{user_id}"):
-            st.session_state.decisions[user_id] = {
-                "action": "pending", "timestamp": datetime.now(timezone.utc).isoformat(),
-                "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                "confidence": hypothesis["confidence"],
-            }
-            record_feedback(
-                user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                hypothesis["traceability"]["target_product"]["code"],
-                hypothesis["confidence"], gov.get("tier", ""), "pending",
-            )
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-    with btn3:
         st.markdown('<div class="ws-btn-primary">', unsafe_allow_html=True)
         if st.button("Approve", type="primary", use_container_width=True, disabled=is_locked, key=f"app_{user_id}"):
             st.session_state.decisions[user_id] = {
@@ -519,12 +486,40 @@ def main():
                     st.rerun()
             st.caption("Confirm bulk approval for all eligible Amber cases above.")
 
-    # Case cards (ordered by urgency: Red → Amber → Green already by tier)
+    # Case cards — paginated to avoid widget overload
+    PAGE_SIZE = 20
     if not queue_items:
         st.info(f"No {current_tier} cases in queue.")
     else:
-        for i, h in enumerate(queue_items):
-            render_case_card(h, features, i)
+        page_key = f"page_{current_tier}"
+        if page_key not in st.session_state:
+            st.session_state[page_key] = 0
+        total_pages = max(1, (len(queue_items) + PAGE_SIZE - 1) // PAGE_SIZE)
+        current_page = st.session_state[page_key]
+        start = current_page * PAGE_SIZE
+        end = min(start + PAGE_SIZE, len(queue_items))
+        page_items = queue_items[start:end]
+
+        for i, h in enumerate(page_items):
+            try:
+                render_case_card(h, features, start + i)
+            except Exception:
+                st.caption(f"Could not render case {h.get('user_id', '?')}")
+
+        if total_pages > 1:
+            pg_prev, pg_info, pg_next = st.columns([1, 2, 1])
+            with pg_info:
+                st.caption(f"Page {current_page + 1} of {total_pages} · Showing {start + 1}–{end} of {len(queue_items)}")
+            with pg_prev:
+                if current_page > 0:
+                    if st.button("← Previous", key=f"prev_{current_tier}"):
+                        st.session_state[page_key] = current_page - 1
+                        st.rerun()
+            with pg_next:
+                if current_page < total_pages - 1:
+                    if st.button("Next →", key=f"next_{current_tier}"):
+                        st.session_state[page_key] = current_page + 1
+                        st.rerun()
 
     # Audit Log — last 10 actions (from SQLite or session)
     st.markdown('<div class="ws-section-header" style="margin-top: 1.5rem;">Audit Log</div>', unsafe_allow_html=True)
