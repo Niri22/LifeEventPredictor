@@ -12,11 +12,43 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parents[2] / "data" / "feedback.db"
+_REPO_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "feedback.db"
+
+
+def _resolve_db_path() -> Path:
+    """Return a writable path for the SQLite database.
+
+    On Streamlit Cloud the repo is mounted read-only at /mount/src/.
+    We try the repo path first; if it's not writable we fall back to a
+    temp directory so the app never crashes on a write."""
+    import tempfile, os
+
+    # Fast check: if the repo db already exists and is writable, use it.
+    if _REPO_DB_PATH.exists():
+        try:
+            _REPO_DB_PATH.touch()
+            return _REPO_DB_PATH
+        except OSError:
+            pass
+
+    # Try creating the parent directory (works locally, fails on Cloud).
+    try:
+        _REPO_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _REPO_DB_PATH.touch()
+        return _REPO_DB_PATH
+    except OSError:
+        pass
+
+    # Fallback: writable temp directory (ephemeral on Cloud, fine for demo).
+    tmp = Path(tempfile.gettempdir()) / "pulse_data"
+    tmp.mkdir(parents=True, exist_ok=True)
+    return tmp / "feedback.db"
+
+
+DB_PATH = _resolve_db_path()
 
 
 def _get_conn() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS human_feedback (

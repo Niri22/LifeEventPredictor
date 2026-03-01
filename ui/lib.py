@@ -110,7 +110,7 @@ SIGNAL_DESCRIPTIONS = {
     },
 }
 
-GOV_TIER_ICONS = {"green": "🟢", "amber": "🟡", "red": "🔴"}
+GOV_TIER_ICONS = {"green": "[G]", "amber": "[A]", "red": "[R]"}
 
 PRODUCT_CODES = ["RRSP_LOAN", "SUMMIT_PORTFOLIO", "AI_RESEARCH_DIRECT_INDEX"]
 

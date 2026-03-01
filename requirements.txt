@@ -5,12 +5,7 @@ pyarrow
 pyyaml
 scikit-learn
 xgboost
-fastapi
-uvicorn[standard]
 pydantic
-streamlit>=1.24.1
-altair==4.2.2
+streamlit>=1.32,<2
 plotly
 joblib
-pytest
-httpx
