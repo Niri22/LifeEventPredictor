@@ -775,6 +775,48 @@ def inject_ws_theme():
         .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }}
         .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
         
+        /* Action Stack: left border + background on the row (stHorizontalBlock), not on children */
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk),
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch),
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth) {{
+            gap: 0 !important;
+            margin-bottom: 0.4rem !important;
+            box-sizing: border-box !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) {{
+            border-left: 4px solid #dc2626 !important;
+            background: #fafafa !important;
+            border-radius: 6px !important;
+            align-items: stretch !important;
+            min-height: 2.75rem;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch) {{
+            border-left: 4px solid #d97706 !important;
+            background: #fafafa !important;
+            border-radius: 6px !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth) {{
+            border-left: 4px solid #16a34a !important;
+            background: #fafafa !important;
+            border-radius: 6px !important;
+        }}
+        /* High-risk row: card's parent = 100% of row height */
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) > div:first-child {{
+            height: 100% !important;
+            min-height: 100% !important;
+            display: flex !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) > div:first-child > div {{
+            height: 100% !important;
+            min-height: 100% !important;
+            width: 100% !important;
+        }}
+        .ws-action-card-highrisk {{
+            min-height: 100% !important;
+            height: 100% !important;
+            box-sizing: border-box;
+        }}
+        
         /* Status strip — neutral when safe, prominent only when degraded */
         .ws-status-strip {{
             font-size: 0.75rem;

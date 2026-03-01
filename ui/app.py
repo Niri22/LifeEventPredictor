@@ -158,7 +158,7 @@ def main():
             c_text, c_btn = st.columns([4, 1])
             with c_text:
                 st.markdown(
-                    f'<div style="border-left:4px solid #dc2626;padding:0.6rem 0.9rem;background:#fafafa;border-radius:6px;">'
+                    f'<div class="ws-action-card-highrisk" style="padding:0.6rem 0.9rem;">'
                     f'<div style="font-weight:600;font-size:0.9rem;">High-Risk Review — {len(red_cases)} cases</div>'
                     f'<div style="font-size:0.8rem;color:#64748b;">Liquidity + suitability ({n_red_liquidity} liquidity, {n_red_other} other) · Prevents unsuitable allocation</div>'
                     f'</div>',
@@ -180,7 +180,7 @@ def main():
             c_text, c_btn = st.columns([4, 1])
             with c_text:
                 st.markdown(
-                    f'<div style="border-left:4px solid #d97706;padding:0.6rem 0.9rem;background:#fafafa;border-radius:6px;">'
+                    f'<div class="ws-action-card-batch" style="padding:0.6rem 0.9rem;">'
                     f'<div style="font-weight:600;font-size:0.9rem;">Batch Approvals — {len(undecided_amber)} eligible</div>'
                     f'<div style="font-size:0.8rem;color:#64748b;">Medium risk + high confidence, cohort-safe · Reduces curator load ~40%</div>'
                     f'</div>',
@@ -208,7 +208,7 @@ def main():
             c_text, c_btn = st.columns([4, 1])
             with c_text:
                 st.markdown(
-                    f'<div style="border-left:4px solid #16a34a;padding:0.6rem 0.9rem;background:#fafafa;border-radius:6px;">'
+                    f'<div class="ws-action-card-growth" style="padding:0.6rem 0.9rem;">'
                     f'<div style="font-weight:600;font-size:0.9rem;">Growth — {persona_lbl} + {product_lbl}</div>'
                     f'<div style="font-size:0.8rem;color:#64748b;">+{uplift_pct:.1f}% uplift · +{format_currency(delta_aua)} projected AUA</div>'
                     f'</div>',
