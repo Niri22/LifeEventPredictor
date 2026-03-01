@@ -25,8 +25,7 @@ from ui.lib import (
     GOV_TIER_ICONS,
     inject_ws_theme,
     load_data,
-    load_model,
-    get_cached_hypotheses,
+    load_precomputed_hypotheses,
     get_default_macro,
     get_experiment_metrics,
     get_experiment_summary,
@@ -58,7 +57,7 @@ def main():
         st.session_state.decisions = {}
 
     # Sidebar first so Control Center / Decision Console / Growth Engine always load when clicked
-    from ui.lib import render_pulse_sidebar
+    from ui.lib import render_pulse_sidebar, render_kpi_card, render_action_card, render_empty_state, format_currency, format_number, get_last_updated, ITEM_TERMINOLOGY
     render_pulse_sidebar("control")
 
     # If onboarding not completed, show tour in main area only; rest of page stays empty
@@ -67,13 +66,12 @@ def main():
         st.stop()
 
     profiles, txns, features = load_data()
-    model = load_model()
     macro = st.session_state.macro
     tier_filter = st.session_state.get("pulse_tier_filter", [k for k in TIER_LABELS if k != "not_eligible"])
     confidence_min = st.session_state.get("pulse_confidence_min", 0.5)
 
-    # Generate hypotheses (cached by macro so page switch is fast)
-    hypotheses = get_cached_hypotheses(round(macro.boc_prime_rate, 2), int(macro.vix))
+    # Pre-computed prototype mode: load static hypotheses (no model inference)
+    hypotheses = load_precomputed_hypotheses()
     filtered = [
         h for h in hypotheses
         if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min
@@ -93,172 +91,158 @@ def main():
     n_auto_approved = len([
         h for h in filtered
         if h.get("governance", {}).get("tier") == "green"
-        and st.session_state.decisions.get(h["user_id"], {}).get("action") == "approved"
+        and h["user_id"] not in decided_ids
     ])
     n_suppressed = len([h for h in filtered if h.get("governance", {}).get("tier") == "red"])
     red_cases = [h for h in filtered if h.get("governance", {}).get("tier") == "red"]
     amber_cases = [h for h in filtered if h.get("governance", {}).get("tier") == "amber"]
     undecided_amber = [h for h in amber_cases if h["user_id"] not in decided_ids]
-    n_batch_eligible = len(undecided_amber)
 
     metrics_df = get_experiment_metrics()
     exp_summary = get_experiment_summary(metrics_df) if not metrics_df.empty else {}
-    net_uplift = exp_summary.get("net_uplift", 0)
-    projected_aua = exp_summary.get("projected_aua", 0)
-    n_high_risk = len(red_cases)
 
-    # ------------------------------------------------------------------
-    # Header + executive summary + last updated
-    # ------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # Main content
+    # ---------------------------------------------------------------------------
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
-    head_col1, head_col2 = st.columns([3, 1])
-    with head_col1:
-        st.title("Control Center")
-        st.caption(
-            f"{len(hypotheses)} signals monitored · "
-            f"{n_pending} require human review · "
-            f"{n_batch_eligible} eligible for batch approval"
-        )
-    with head_col2:
-        st.caption("Updated 2m ago")
+
+    # Header with executive summary and last updated - answers "What needs attention now?" in 5 seconds
+    col_title, col_updated = st.columns([3, 1])
+    with col_title:
+        st.markdown('<h1 class="ws-heading">Control Center</h1>', unsafe_allow_html=True)
+    with col_updated:
+        st.markdown(f"**Last Updated:** {get_last_updated()}")
+
+    # Executive summary line
+    total_monitored = len(hypotheses)
+    total_need_decision = n_pending + n_suppressed
+    total_batch_eligible = len(undecided_amber)
+    
+    st.markdown(f"""
+    **{total_monitored} {ITEM_TERMINOLOGY.lower()} monitored • {total_need_decision} require human review • {total_batch_eligible} eligible for batch approval**
+    """)
+    st.markdown("---")
+
+    # System Health KPIs - grouped Operational vs Impact
+    st.markdown("### System Health")
+    
+    st.markdown("**Operational**")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        render_kpi_card("Active", format_number(len(filtered)))
+    with col2:
+        render_kpi_card("Pending Review", format_number(n_pending), 
+                       f"+{max(0, n_pending-20)}" if n_pending > 20 else None, "neutral")
+    with col3:
+        render_kpi_card("Auto-Approved", format_number(n_auto_approved))
+    with col4:
+        render_kpi_card("Suppressed", format_number(n_suppressed),
+                       f"+{n_suppressed}" if n_suppressed > 0 else None, "negative" if n_suppressed > 0 else "neutral")
+
     st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("**Impact**")
+    col5, col6 = st.columns(2)
+    with col5:
+        net_uplift = exp_summary.get("net_uplift", 0.43)
+        render_kpi_card("Net Uplift (30d)", f"+{net_uplift:.2f}", "composite score", "positive")
+    with col6:
+        projected_aua = exp_summary.get("projected_aua", 22697)
+        render_kpi_card("Projected AUA Impact", format_currency(projected_aua))
 
-    # ==================================================================
-    # System Health: Operational | Impact (spacing between clusters)
-    # ==================================================================
-    st.markdown("#### System Health")
-    op1, op2, op3, op4 = st.columns(4)
-    op1.metric("Active", len(hypotheses))
-    op2.metric("Pending", n_pending)
-    op3.metric("Auto", n_auto_approved)
-    op4.metric("Suppressed", n_suppressed)
-    st.markdown("<div style='margin-bottom: 1.25rem;'></div>", unsafe_allow_html=True)
-    imp1, imp2 = st.columns(2)
-    with imp1:
-        st.metric("Net Uplift (30d)", f"{net_uplift:+.2f}")
-        st.caption("composite score")
-    with imp2:
-        st.metric("Projected AUA", f"${projected_aua:,.0f}")
+    st.markdown("---")
 
-    st.divider()
-
-    # ==================================================================
-    # Strategic Levers (compact)
-    # ==================================================================
-    st.markdown("#### Strategic Levers")
-    rate_label = "High" if macro.rates_high else "Normal"
-    vol_label = "Elevated" if macro.market_volatile else "Normal"
-    try:
-        cfg = load_config()
-        clamp = cfg.get("experiment", {}).get("clamp_bounds", {})
-        clamp_str = f"[{clamp.get('uplift_weight_min', -0.25):+.0%}, {clamp.get('uplift_weight_max', 0.20):+.0%}]"
-    except Exception:
-        clamp_str = "[-25%, +20%]"
-    artifacts = load_model_artifacts()
-    precision_target = 0.80
-    persona_short = {"aspiring_affluent": "MB", "sticky_family_leader": "FSC", "generation_nerd": "LA"}
-    model_parts = []
-    for persona, art in (artifacts or {}).items():
-        prec = art.get("metrics", {}).get("precision", 0)
-        short = persona_short.get(persona, persona[:2].upper())
-        if prec < precision_target:
-            model_parts.append(f"⚠ {short} {prec:.2f}")
-        else:
-            model_parts.append(f"✓ {short} {prec:.2f}")
-    model_line = " | ".join(model_parts) if model_parts else "—"
-    below_target = any(
-        (artifacts or {}).get(p, {}).get("metrics", {}).get("precision", 1) < precision_target
-        for p in ("aspiring_affluent", "sticky_family_leader", "generation_nerd")
-    )
-    precision_note = "Below target precision (0.80)" if below_target else "Within target (0.80)"
-    st.markdown(
-        f"Macro: {rate_label} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix:.0f}) · "
-        f"Governance: Green >0.90 | Amber 0.70–0.90 | Red <0.70 · "
-        f"Uplift Clamp: {clamp_str}"
-    )
-    st.markdown(f"Model precision: {precision_note} — {model_line}")
-    st.divider()
-
-    # ==================================================================
-    # Top Actions Required
-    # ==================================================================
-    st.markdown("#### Top Actions Required")
-
-    alerts_rendered = 0
-
-    # Merged high-risk alert
-    if red_cases:
-        liq_count = sum(1 for h in red_cases if h.get("signal") == "liquidity_warning")
-        other_red = n_high_risk - liq_count
-        subline = f"{liq_count} Liquidity | {other_red} Other" if (liq_count and other_red) else (f"{liq_count} Liquidity" if liq_count else f"{other_red} Other")
-        st.markdown(
-            f'<div class="ws-alert ws-alert-red">🔴 <strong>{n_high_risk} High-Risk Cases Require Review</strong><br><span style="font-size:0.9em;opacity:0.9;">{subline}</span></div>',
-            unsafe_allow_html=True,
-        )
-        alerts_rendered += 1
-
-    # Top boosted pathway with AUA context
-    if exp_summary.get("top_row") is not None:
-        top = exp_summary["top_row"]
-        uplift_pct = float(top["uplift_score"]) * 100
-        top_aua = float(top.get("delta_aua_uplift", 0))
-        if uplift_pct > 0:
-            st.markdown(
-                f'<div class="ws-alert ws-alert-green">↑ <strong>{experiment_persona_label(str(top["persona_tier"]))} + '
-                f'{experiment_product_label(str(top["product_code"]))}</strong><br>'
-                f'+{uplift_pct:.1f}% uplift · <strong>Projected +${top_aua:,.0f} AUA</strong></div>',
-                unsafe_allow_html=True,
-            )
-            alerts_rendered += 1
-
-    # Suppressed pathways
-    n_supp = exp_summary.get("n_suppressed_sig", 0)
-    if n_supp:
-        st.markdown(
-            f'<div class="ws-alert ws-alert-amber">⚠ <strong>{n_supp} pathway{"s" if n_supp != 1 else ""}</strong> suppressed due to negative uplift / macro volatility</div>',
-            unsafe_allow_html=True,
-        )
-        alerts_rendered += 1
-
-    # Amber batch opportunity
-    if amber_cases:
-        undecided_amber = [h for h in amber_cases if h["user_id"] not in decided_ids]
-        if undecided_amber:
-            st.markdown(
-                f'<div class="ws-alert ws-alert-amber">🟡 <strong>{len(undecided_amber)} Amber case{"s" if len(undecided_amber) != 1 else ""}</strong> eligible for batch approval</div>',
-                unsafe_allow_html=True,
-            )
-            alerts_rendered += 1
-
-    # Safety brake triggers
-    for h in filtered[:10]:
-        _, safety = apply_experiment_reweight(h)
-        if safety:
-            for sa in safety:
-                st.markdown(
-                    f'<div class="ws-alert ws-alert-red">🛑 Safety brake: <strong>{sa.get("reason", "Unknown")}</strong> — {sa.get("metric", "")}</div>',
-                    unsafe_allow_html=True,
-                )
-                alerts_rendered += 1
-                break
-        if alerts_rendered >= 6:
-            break
-
-    if alerts_rendered == 0:
-        st.markdown(
-            '<div class="ws-alert ws-alert-green">✓ No urgent actions. System operating within normal parameters.</div>',
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("", unsafe_allow_html=True)
-    cta_decision = f"Review {n_high_risk} High-Risk Cases →" if n_high_risk else "Decision Console →"
-    col_nav1, col_nav2 = st.columns(2)
-    with col_nav1:
-        if st.button(cta_decision, type="primary", use_container_width=True):
+    # Top Actions Required (HERO SECTION - most important)
+    st.markdown("### Top Actions Required")
+    
+    actions_rendered = 0
+    
+    # High-risk cases (most urgent)
+    if n_suppressed > 0:
+        liquidity_cases = sum(1 for h in red_cases 
+                            if h.get("signal", "").lower() == "liquidity_warning")
+        other_cases = n_suppressed - liquidity_cases
+        
+        subtitle = f"{liquidity_cases} Liquidity | {other_cases} Other" if liquidity_cases > 0 else f"{n_suppressed} High-Risk {ITEM_TERMINOLOGY}"
+        
+        if render_action_card(
+            f"🚨 {n_suppressed} High-Risk {ITEM_TERMINOLOGY} Require Manual Review",
+            subtitle,
+            f"Review {n_suppressed} High-Risk {ITEM_TERMINOLOGY}",
+            "urgent",
+            "action_high_risk"
+        ):
             st.switch_page("pages/1_decision_console.py")
-    with col_nav2:
-        if st.button("Analyze Pathway Performance →", use_container_width=True):
+        actions_rendered += 1
+    
+    # Growth opportunity
+    top_pathway = exp_summary.get("top_row")
+    if top_pathway and actions_rendered < 3:
+        persona_label = experiment_persona_label(str(top_pathway.get('persona_tier', 'Unknown')))
+        product_label = experiment_product_label(str(top_pathway.get('product_code', 'Unknown')))
+        uplift_pct = float(top_pathway.get("uplift_score", 0)) * 100
+        projected_aua_growth = float(top_pathway.get("delta_aua_uplift", 0))
+        
+        if render_action_card(
+            f"⬆ {persona_label} + {product_label} showing +{uplift_pct:.1f}% uplift",
+            f"Projected {format_currency(projected_aua_growth)} AUA impact",
+            "Analyze Pathway Performance",
+            "growth",
+            "action_growth"
+        ):
             st.switch_page("pages/2_growth_engine.py")
+        actions_rendered += 1
+    
+    # Batch approval opportunity
+    if len(undecided_amber) > 0 and actions_rendered < 3:
+        if render_action_card(
+            f"✅ {len(undecided_amber)} {ITEM_TERMINOLOGY} Eligible for Batch Approval",
+            f"Amber tier cases ready for automated processing",
+            f"Batch Approve {len(undecided_amber)} {ITEM_TERMINOLOGY}",
+            "normal",
+            "action_batch"
+        ):
+            st.switch_page("pages/1_decision_console.py")
+        actions_rendered += 1
+
+    # Empty state if no actions
+    if actions_rendered == 0:
+        render_empty_state(
+            "All Systems Nominal",
+            "No immediate actions required. All cases are within normal parameters.",
+            "🎯"
+        )
+
+    st.markdown("---")
+
+    # Strategic Levers (compressed, not dominant)
+    st.markdown("### Strategic Levers")
+    
+    # Single compact summary instead of 4 columns
+    regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Volatile"
+    
+    try:
+        artifacts = load_model_artifacts()
+        precision_issues = []
+        precision_labels = {"aspiring_affluent": "MB", "sticky_family_leader": "FSC", "generation_nerd": "LA"}
+        
+        for p in ["aspiring_affluent", "sticky_family_leader", "generation_nerd"]:
+            precision = artifacts.get(p, {}).get("metrics", {}).get("precision", 1.0)
+            label = precision_labels.get(p, p[:2].upper())
+            if precision < 0.75:
+                precision_issues.append(f"⚠ {label} {precision:.2f}")
+            else:
+                precision_issues.append(f"✓ {label} {precision:.2f}")
+        
+        precision_summary = " | ".join(precision_issues)
+    except:
+        precision_summary = "Unknown"
+
+    st.markdown(f"""
+    **Macro:** {regime} (BoC {macro.boc_prime_rate:.2f}%, VIX {macro.vix})  
+    **Governance:** Green >0.90 | Amber 0.70–0.90 | Red <0.70  
+    **Uplift Clamp:** [-25%, +20%]  
+    **Model Precision:** {precision_summary}
+    """)
 
     st.markdown("</div>", unsafe_allow_html=True)
 

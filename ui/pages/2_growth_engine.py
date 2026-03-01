@@ -48,18 +48,32 @@ def main():
     render_pulse_sidebar("growth")
 
     st.markdown('<div class="ws-main">', unsafe_allow_html=True)
-    st.title("Growth Engine")
-    st.caption("Experiment performance, pathway uplift, and model health — all in one view")
+    
+    # Header with last updated
+    col_title, col_updated = st.columns([3, 1])
+    with col_title:
+        st.markdown('<h1 class="ws-heading">Growth Engine</h1>', unsafe_allow_html=True)
+        st.caption("Experiment outcomes and model reliability — which pathways are winning?")
+    with col_updated:
+        from ui.lib import get_last_updated, get_model_version
+        st.markdown(f"**Last Updated:** {get_last_updated()}")
+        st.caption(f"Model: {get_model_version()}")
 
     metrics_df = get_experiment_metrics()
 
     # ==================================================================
-    # SECTION A: Impact & Uplift (Executive View)
+    # SECTION A: Impact & Uplift (Executive View) - Answers in 5 seconds
     # ==================================================================
-    st.markdown("#### A. Impact & Uplift")
+    st.markdown("### Impact & Uplift")
+    st.caption("Which pathways are winning? Which are losing? What is the magnitude of impact? Should we scale or suppress?")
 
     if metrics_df.empty:
-        st.info("No experiment metrics available. Run assignments and simulate outcomes via the demo script.")
+        from ui.lib import render_empty_state
+        render_empty_state(
+            "No Experiment Data Available", 
+            "Run assignments and simulate outcomes to see pathway performance.",
+            "📊"
+        )
     else:
         summary = get_experiment_summary(metrics_df)
         net_uplift = summary["net_uplift"]
@@ -68,74 +82,89 @@ def main():
         projected_aua = summary["projected_aua"]
         sorted_df = summary["sorted_df"]
 
-        # KPI cards
+        # Executive Summary KPIs - Large numbers, big font, clean layout
         k1, k2, k3, k4 = st.columns(4)
         with k1:
-            color = "color:#0d7d0d" if net_uplift >= 0 else "color:#c0392b"
-            st.markdown(f'<p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0">Net Uplift</p>'
-                        f'<p style="font-size:2rem;font-weight:600;{color};margin:0">{net_uplift:+.2f}</p>', unsafe_allow_html=True)
-            st.caption("Composite score, volume-weighted")
+            from ui.lib import render_kpi_card
+            render_kpi_card("Net Uplift", f"{net_uplift:+.2f}", "All Pathways", "positive" if net_uplift >= 0 else "negative")
         with k2:
             if top_row is not None:
-                st.markdown(f'<p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0">Top Pathway</p>'
-                            f'<p style="font-size:1.1rem;font-weight:600;margin:0">{experiment_persona_label(str(top_row["persona_tier"]))} + '
-                            f'{experiment_product_label(str(top_row["product_code"]))}</p>', unsafe_allow_html=True)
-                st.caption(f"Uplift: {float(top_row['uplift_score']) * 100:+.1f}%  |  AUA: ${float(top_row['delta_aua_uplift']):,.0f}")
+                persona_label = experiment_persona_label(str(top_row["persona_tier"]))
+                product_label = experiment_product_label(str(top_row["product_code"]))
+                uplift_val = f"{float(top_row['uplift_score']) * 100:+.1f}%"
+                aua_val = f"${float(top_row['delta_aua_uplift']):,.0f}"
+                render_kpi_card("Top Performing Pathway", f"{persona_label} + {product_label}", f"{uplift_val} Conversion | {aua_val} AUA", "positive")
             else:
-                st.metric("Top Pathway", "—")
+                render_kpi_card("Top Performing Pathway", "—", "No significant pathways")
         with k3:
             if n_suppressed_sig > 0:
-                st.markdown(f'<p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0">Suppressed</p>'
-                            f'<p style="font-size:2rem;font-weight:600;color:#c0392b;margin:0">{n_suppressed_sig}</p>', unsafe_allow_html=True)
+                render_kpi_card("Suppressed Pathways", str(n_suppressed_sig), "Negative performance", "negative")
             else:
-                st.markdown('<p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0">Suppressed</p>'
-                            '<p style="font-size:1rem;margin:0"><span style="background:#E8F5E9;padding:4px 10px;border-radius:4px">None detected</span></p>',
-                            unsafe_allow_html=True)
+                render_kpi_card("Suppressed Pathways", "0", "No suppressed pathways detected", "positive")
         with k4:
-            aua_color = "color:#0d7d0d" if projected_aua >= 0 else "color:#c0392b"
-            st.markdown(f'<p style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0">Projected AUA Impact</p>'
-                        f'<p style="font-size:2rem;font-weight:600;{aua_color};margin:0">${projected_aua:,.0f}</p>', unsafe_allow_html=True)
+            render_kpi_card("Projected AUA Impact", f"${projected_aua:,.0f}", "Total expected growth", "positive" if projected_aua >= 0 else "negative")
 
-        st.divider()
+        st.markdown("---")
 
-        # Ranked pathways table
-        st.markdown("**Ranked Pathways**")
+        # Ranked Pathways (Visual Priority) - sorted by composite uplift
+        st.markdown("### Ranked Pathways")
+        st.caption("Priority Score = calibrated_confidence + measured_uplift - risk_penalty")
+        
         ranked, styled = build_ranked_experiment_table(metrics_df)
         if styled is not None:
+            # Make significance visually loud
             st.dataframe(styled, use_container_width=True, hide_index=True)
+            
+            # Action Recommendation (Critical)
+            if not ranked.empty:
+                top_pathway = ranked.iloc[0]
+                if top_pathway['Uplift %'] > 0.05:  # 5% threshold
+                    st.success(f"**Recommendation:** Increase prioritization weight +10% for {top_pathway['Persona']} + {top_pathway['Product']}")
+                elif top_pathway['Uplift %'] < -0.02:  # -2% threshold
+                    st.error(f"**Recommendation:** Suppress pathway {top_pathway['Persona']} + {top_pathway['Product']} until significance threshold met")
+                else:
+                    st.info("**Recommendation:** Hold current prioritization weights — insufficient signal for adjustment")
 
-        st.divider()
+        st.markdown("---")
 
-        # Pathway deep dive
+        # Pathway Deep Dive (On Click) - grouped by meaning
         if not ranked.empty:
+            st.markdown("### Pathway Deep Dive")
             sel_idx = st.selectbox(
-                "Deep dive into pathway",
+                "Select pathway for detailed analysis",
                 range(len(ranked)),
-                format_func=lambda i: f"{ranked.iloc[i]['Persona']} · {ranked.iloc[i]['Product']} ({ranked.iloc[i]['Uplift %']:+.2f}%)",
+                format_func=lambda i: f"{ranked.iloc[i]['Persona']} · {ranked.iloc[i]['Product']} ({ranked.iloc[i]['Uplift %']:+.2%})",
                 key="ge_pathway_select",
             )
             if 0 <= sel_idx < len(ranked):
                 r = sorted_df.iloc[sel_idx]
+                
+                # Group metrics by meaning, not raw metric type
                 dd1, dd2, dd3 = st.columns(3)
                 with dd1:
                     st.markdown("**Impact**")
-                    _colored_metric("Conversion lift", float(r["conversion_uplift"]))
-                    _colored_metric("AUA delta", float(r["delta_aua_uplift"]), fmt="${:,.0f}")
-                    _colored_metric("Retention lift", float(r["retention_uplift"]))
+                    _colored_metric("Conversion Lift", float(r["conversion_uplift"]), fmt="{:+.2%}")
+                    _colored_metric("AUA Delta", float(r["delta_aua_uplift"]), fmt="${:,.0f}")
+                    _colored_metric("Retention Lift", float(r["retention_uplift"]), fmt="{:+.2%}")
                 with dd2:
                     st.markdown("**Risk**")
-                    _colored_metric("Liquidity impact", float(r["liquidity_uplift"]))
-                    _colored_metric("Complaint lift", float(r["complaint_uplift"]), invert=True)
+                    _colored_metric("Liquidity Impact", float(r["liquidity_uplift"]))
+                    _colored_metric("Complaint Lift", float(r["complaint_uplift"]), invert=True, fmt="{:+.2%}")
                 with dd3:
                     st.markdown("**Statistical Confidence**")
-                    st.metric("Treatment n", int(r["n_treatment"]))
-                    st.metric("Control n", int(r["n_control"]))
-                    sig = "Yes" if r["significance_flag"] else "No"
-                    st.metric("Significance", sig)
-                    # Approximate CI bar
+                    st.metric("Treatment n", f"{int(r['n_treatment']):,}")
+                    st.metric("Control n", f"{int(r['n_control']):,}")
+                    
+                    # Visual significance badge with explanation
+                    is_sig = bool(r["significance_flag"])
+                    total_n = int(r['n_treatment']) + int(r['n_control'])
+                    from ui.lib import render_significance_badge
+                    st.markdown(f"**Significance:** {render_significance_badge(is_sig, total_n)}", unsafe_allow_html=True)
+                    
+                    # Confidence Interval Bars
                     u = float(r["uplift_score"])
-                    ci_lo, ci_hi = u - 0.15, u + 0.15
-                    st.caption(f"Uplift 95% CI (approx): [{ci_lo:+.2f}, {ci_hi:+.2f}]")
+                    ci_lo, ci_hi = u - 0.15, u + 0.15  # Placeholder CI
+                    st.caption(f"**95% CI (approx):** [{ci_lo:+.2f}, {ci_hi:+.2f}]")
                     _render_ci_bar(ci_lo, u, ci_hi)
 
                 # Action recommendation

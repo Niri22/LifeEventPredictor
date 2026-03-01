@@ -42,6 +42,9 @@ TIER_LABELS = {
     "not_eligible": "Not Eligible (<$50k)",
 }
 
+# Consistent terminology
+ITEM_TERMINOLOGY = "Cases"  # Use "Cases" consistently instead of "Signals" or "Items"
+
 TIER_COLORS = {
     "aspiring_affluent": "#4ECDC4",
     "sticky_family_leader": "#FFD93D",
@@ -266,6 +269,24 @@ def get_cached_hypotheses(boc: float, vix: float):
     return generate_hypotheses(features, profiles, model, macro)
 
 
+HYPOTHESES_JSON = DATA_PROCESSED / "hypotheses.json"
+
+
+@st.cache_data(ttl=300)
+def load_precomputed_hypotheses():
+    """Load hypotheses from data/processed/hypotheses.json (prototype mode). No model inference.
+    If file is missing, fall back to get_cached_hypotheses with default macro so the app still runs."""
+    if HYPOTHESES_JSON.exists():
+        try:
+            with open(HYPOTHESES_JSON) as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                return data
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return get_cached_hypotheses(DEFAULT_BOC_RATE, DEFAULT_VIX)
+
+
 def load_cohorts_df() -> pd.DataFrame:
     path = DATA_EXPERIMENTS / "cohorts.parquet"
     if not path.exists():
@@ -318,10 +339,13 @@ def get_default_macro() -> MacroSnapshot:
 
 @st.cache_data(ttl=60)
 def get_experiment_metrics():
-    """Load experiment assignments + outcomes and compute pathway metrics (no API required). Cached 60s to speed up page switches."""
+    """Load pathway metrics from disk when available (prototype mode); else compute from assignments/outcomes. Cached 60s."""
     try:
-        from src.experiments.storage import read_assignments, read_outcomes
+        from src.experiments.storage import read_pathway_metrics, read_assignments, read_outcomes
         from src.experiments.metrics import compute_pathway_metrics
+        pathway_metrics_df = read_pathway_metrics()
+        if pathway_metrics_df is not None and not pathway_metrics_df.empty:
+            return pathway_metrics_df
         config = load_config()
         assignments_df = read_assignments()
         outcomes_df = read_outcomes()
@@ -488,6 +512,134 @@ def confidence_band(confidence: float) -> tuple[str, str]:
     return "Low", "Weak signal; exploratory only."
 
 
+# ---------------------------------------------------------------------------
+# Reusable UI Components for Product-Grade Polish
+# ---------------------------------------------------------------------------
+
+def render_kpi_card(label: str, value: str, delta: str = None, delta_type: str = "neutral"):
+    """Render a polished KPI card with optional delta."""
+    delta_class = f"kpi-{delta_type}" if delta else ""
+    delta_html = f'<div class="kpi-delta {delta_class}">{delta}</div>' if delta else ""
+    
+    st.markdown(f"""
+    <div class="kpi-card">
+        <div class="kpi-value">{value}</div>
+        <div class="kpi-label">{label}</div>
+        {delta_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_action_card(title: str, subtitle: str, action_text: str, urgency: str = "normal", key: str = None):
+    """Render an actionable alert card with CTA."""
+    card_class = f"action-card {urgency}"
+    
+    st.markdown(f"""
+    <div class="{card_class}">
+        <div style="font-weight: 600; margin-bottom: 0.25rem;">{title}</div>
+        <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.75rem;">{subtitle}</div>
+        <div style="font-size: 0.875rem; font-weight: 500; color: #4F46E5;">{action_text} →</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Return True if clicked (simplified for prototype)
+    return st.button(f"Execute: {action_text}", key=key, use_container_width=True)
+
+
+def render_governance_badge(tier: str) -> str:
+    """Render a governance tier badge."""
+    badge_map = {
+        "green": ("Green", "badge-green"),
+        "amber": ("Amber", "badge-amber"), 
+        "red": ("Red", "badge-red")
+    }
+    
+    if tier.lower() in badge_map:
+        label, css_class = badge_map[tier.lower()]
+        return f'<span class="badge {css_class}">{label}</span>'
+    return f'<span class="badge badge-grey">{tier}</span>'
+
+
+def render_significance_badge(is_significant: bool, sample_size: int = None) -> str:
+    """Render a significance badge with explanation."""
+    if is_significant:
+        label = f"Significant (n={sample_size})" if sample_size else "Significant"
+        return f'<span class="badge badge-green">{label}</span>'
+    else:
+        label = f"Insufficient Data (n={sample_size})" if sample_size else "Insufficient Data"
+        return f'<span class="badge badge-grey">{label}</span>'
+
+
+def show_toast(message: str, duration: int = 3):
+    """Show a toast notification (simplified implementation)."""
+    st.success(message)  # Using Streamlit's built-in for now
+    
+
+def render_empty_state(title: str, subtitle: str, icon: str = "📊"):
+    """Render an empty state with icon and message."""
+    st.markdown(f"""
+    <div class="empty-state">
+        <div class="empty-state-icon">{icon}</div>
+        <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">{title}</div>
+        <div style="font-size: 0.875rem;">{subtitle}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def format_currency(amount: float) -> str:
+    """Format currency with appropriate precision."""
+    if abs(amount) >= 1_000_000:
+        return f"${amount/1_000_000:.1f}M"
+    elif abs(amount) >= 1_000:
+        return f"${amount/1_000:.0f}k"
+    else:
+        return f"${amount:.0f}"
+
+
+def format_percentage(value: float) -> str:
+    """Format percentage with 2 decimal places."""
+    return f"{value:.2%}"
+
+
+def format_number(value: float) -> str:
+    """Format number with appropriate precision."""
+    if abs(value) >= 1_000_000:
+        return f"{value/1_000_000:.1f}M"
+    elif abs(value) >= 1_000:
+        return f"{value/1_000:.0f}k"
+    else:
+        return f"{value:.0f}"
+
+
+def get_last_updated() -> str:
+    """Get a formatted 'last updated' timestamp."""
+    return datetime.now().strftime("%Y-%m-%d %H:%M")
+
+
+def get_model_version() -> str:
+    """Get current model version."""
+    return "v1.2.3"  # Placeholder for prototype
+
+
+def compute_priority_score(hypothesis: dict, metrics_df: pd.DataFrame = None) -> float:
+    """Compute a composite priority score for ranking."""
+    base_confidence = hypothesis.get("confidence", 0.0)
+    
+    # Add uplift weight if available
+    uplift_weight = 0.0
+    if metrics_df is not None and not metrics_df.empty:
+        # Simplified uplift lookup
+        uplift_weight = 0.1  # Placeholder
+    
+    # Risk penalty for high-risk cases
+    risk_penalty = 0.0
+    governance = hypothesis.get("governance", {})
+    if governance.get("tier") == "red":
+        risk_penalty = 0.2
+    
+    return base_confidence + uplift_weight - risk_penalty
+
+
 def render_confidence_gauge(confidence: float):
     color = "normal" if confidence >= 0.8 else ("off" if confidence >= 0.6 else "inverse")
     st.metric("Score", f"{confidence:.1%}", delta_color=color)
@@ -586,8 +738,8 @@ NAV_PAGES = [
 
 def render_pulse_sidebar(current_page: str):
     """
-    Render the Pulse command-console sidebar: Primary nav only, then System Status, Configure, Help.
-    Flat list, no bordered cards. Reads/writes st.session_state.macro, pulse_tier, pulse_conf.
+    Executive command console sidebar: Primary nav, System Status, Configure, Help.
+    Clean hierarchy with no redundant headers or bordered cards.
     """
     if "macro" not in st.session_state:
         st.session_state.macro = get_default_macro()
@@ -595,14 +747,11 @@ def render_pulse_sidebar(current_page: str):
     sb = st.sidebar
     macro = st.session_state.macro
 
-    # ----- Primary (top only) -----
+    # ----- Primary Navigation (top, high emphasis) -----
     sb.markdown('<div class="sidebar-nav">', unsafe_allow_html=True)
     for page_id, label, path in NAV_PAGES:
         if page_id == current_page:
-            sb.markdown(
-                f'<div class="nav-item nav-active">{label}</div>',
-                unsafe_allow_html=True,
-            )
+            sb.markdown(f'<div class="nav-item nav-active">{label}</div>', unsafe_allow_html=True)
         else:
             try:
                 sb.page_link(path, label=label)
@@ -612,40 +761,63 @@ def render_pulse_sidebar(current_page: str):
     sb.markdown("</div>", unsafe_allow_html=True)
     sb.markdown("---")
 
-    # ----- System Status -----
-    macro_label, models_label = get_system_status_labels()
+    # ----- System Status (secondary, compact) -----
     sb.markdown('<p class="sidebar-section">System Status</p>', unsafe_allow_html=True)
-    sb.caption(macro_label)
-    sb.caption(models_label)
+    
+    # Macro regime
+    regime = "Normal" if 3.0 <= macro.boc_prime_rate <= 6.0 and macro.vix <= 25 else "Volatile"
+    sb.markdown(f'<div class="sidebar-context">Macro: {regime} (BoC {macro.boc_prime_rate:.2f}% • VIX {macro.vix})</div>', 
+                unsafe_allow_html=True)
+    
+    # Model health
+    try:
+        artifacts = load_model_artifacts()
+        precision_issues = sum(1 for p in PERSONAS if artifacts.get(p, {}).get("precision", 1.0) < 0.75)
+        if precision_issues == 0:
+            health_status = "Precision Stable"
+        else:
+            health_status = f"Mixed (⚠ {precision_issues} below threshold)"
+    except:
+        health_status = "Unknown"
+    
+    sb.markdown(f'<div class="sidebar-context">Models: {health_status}</div>', unsafe_allow_html=True)
     sb.markdown("---")
 
-    # ----- Configure -----
+    # ----- Configure (collapsible, minimal) -----
     sb.markdown('<p class="sidebar-section">Configure</p>', unsafe_allow_html=True)
-    tier_options = [k for k in TIER_LABELS if k != "not_eligible"]
+    
     with sb.expander("Filters", expanded=False):
+        tier_options = [k for k in TIER_LABELS if k != "not_eligible"]
         tier_filter = st.multiselect(
-            "Persona",
+            "Persona Tier",
             options=tier_options,
-            format_func=lambda x: TIER_LABELS[x].split(" ")[0],
             default=tier_options,
-            key="pulse_tier",
+            key="pulse_tier_filter",
+            format_func=lambda x: TIER_LABELS[x].split("(")[0].strip(),
         )
-        confidence_min = st.slider("Min confidence", 0.0, 1.0, 0.5, 0.05, key="pulse_conf")
-    st.session_state["pulse_tier_filter"] = tier_filter
-    st.session_state["pulse_confidence_min"] = confidence_min
+        confidence_min = st.slider(
+            "Min Confidence",
+            0.0, 1.0, 0.5, 0.05,
+            key="pulse_confidence_min",
+        )
 
     with sb.expander("Scenario", expanded=False):
-        boc_rate = st.slider("BoC %", 3.0, 8.0, float(macro.boc_prime_rate), 0.25, key="sb_boc")
-        vix_val = st.slider("VIX", 10, 40, int(macro.vix), 1, key="sb_vix")
-        st.session_state.macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix_val)
+        boc_rate = st.slider("BoC Prime Rate (%)", 2.0, 8.0, macro.boc_prime_rate, 0.25)
+        vix = st.slider("Market Volatility (VIX)", 10, 50, int(macro.vix), 1)
+        if boc_rate != macro.boc_prime_rate or vix != macro.vix:
+            st.session_state.macro = MacroSnapshot(boc_prime_rate=boc_rate, vix=vix)
+            st.rerun()
 
-    # ----- Help -----
     sb.markdown("---")
+
+    # ----- Help (low emphasis) -----
     sb.markdown('<p class="sidebar-section">Help</p>', unsafe_allow_html=True)
-    with sb.expander("About", expanded=False):
-        st.caption("Persona → Signal → Governance → Product → Impact")
-        for key, p in PERSONA_DESCRIPTIONS.items():
-            st.caption(f"{p['name']}: {p['signal']} → {p['action']}")
-    if sb.button("Tour", key="sb_tour"):
+    
+    if sb.button("About", key="about_pulse"):
+        with sb.expander("About Pulse", expanded=True):
+            sb.markdown("**AI Growth Control Panel**")
+            sb.caption("Monitors client personas for upgrade, risk, and opportunity signals.")
+            
+    if sb.button("Tour", key="start_tour"):
         from ui.onboarding import start_tour
         start_tour()

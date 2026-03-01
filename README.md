@@ -141,6 +141,21 @@ python -m uvicorn api.main:app --reload --port 8001
 python -m streamlit run ui/app.py
 ```
 
+### Pre-computed prototype mode (faster loads)
+
+For faster app loads without running model inference on each session, pre-compute hypotheses and (optionally) pathway metrics once:
+
+```bash
+# After data generation and training: write static hypotheses to data/processed/hypotheses.json
+python -m scripts.precompute_hypotheses
+
+# Optional: pre-compute experiment pathway metrics so Growth Engine reads from disk
+# (run after simulate_experiment or your experiment flow that writes pathway_metrics.parquet)
+make simulate_experiment   # or: python -m scripts.simulate_experiment
+```
+
+The UI then reads from `data/processed/hypotheses.json` and, when present, `data/experiments/pathway_metrics.parquet` instead of running inference or recomputing metrics on each load. If `hypotheses.json` is missing, the app falls back to generating hypotheses on demand (slower).
+
 ## API Endpoints
 
 - `GET /` — Service info

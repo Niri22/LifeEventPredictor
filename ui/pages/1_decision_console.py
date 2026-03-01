@@ -30,8 +30,7 @@ from ui.lib import (
     WS_GOLD,
     inject_ws_theme,
     load_data,
-    load_model,
-    get_cached_hypotheses,
+    load_precomputed_hypotheses,
     get_default_macro,
     apply_experiment_reweight,
     build_queue_df,
@@ -39,6 +38,10 @@ from ui.lib import (
     render_confidence_gauge,
     confidence_band,
     render_pulse_sidebar,
+    render_governance_badge,
+    show_toast,
+    get_last_updated,
+    ITEM_TERMINOLOGY,
 )
 
 st.set_page_config(page_title="Decision Console — W Pulse", page_icon="W", layout="wide")
@@ -53,14 +56,19 @@ if "macro" not in st.session_state:
 
 
 def _ensure_hypotheses():
-    """Use session state if Control Center already ran; else use cached hypothesis getter so page loads fast."""
+    """Use session state if Control Center already ran; else load pre-computed hypotheses and apply filters."""
     if "filtered" in st.session_state and st.session_state["filtered"]:
         return st.session_state["filtered"]
     macro = st.session_state.macro
-    hyps = get_cached_hypotheses(round(macro.boc_prime_rate, 2), int(macro.vix))
+    hyps = load_precomputed_hypotheses()
+    tier_filter = st.session_state.get("pulse_tier_filter", [k for k in TIER_LABELS if k != "not_eligible"])
+    confidence_min = st.session_state.get("pulse_confidence_min", 0.5)
+    filtered = [h for h in hyps if h["persona_tier"] in tier_filter and h["confidence"] >= confidence_min]
+    if macro.boc_prime_rate > 6.0:
+        filtered = [h for h in filtered if h.get("traceability", {}).get("target_product", {}).get("code") != "RRSP_LOAN"]
     st.session_state["hypotheses"] = hyps
-    st.session_state["filtered"] = hyps
-    return hyps
+    st.session_state["filtered"] = filtered
+    return filtered
 
 
 # ---------------------------------------------------------------------------
