@@ -867,12 +867,18 @@ def inject_ws_theme():
         .adb-impact-metric .k {{ color: #64748b; font-weight: 500; }}
         .adb-progress-wrap {{ margin: 0.4rem 0; }}
         .adb-progress-label {{ font-size: 11px; color: #64748b; margin-bottom: 0.15rem; display: flex; justify-content: space-between; }}
-        .adb-progress-bar {{ height: 8px; border-radius: 4px; overflow: hidden; background: #e2e8f0; position: relative; }}
-        .adb-progress-bar .fill {{ height: 100%; border-radius: 4px; transition: width 0.2s; }}
+        .adb-progress-bar {{ height: 10px; border-radius: 4px; overflow: visible; background: #e5e7eb; position: relative; display: flex; }}
+        .adb-progress-bar .fill {{ height: 100%; border-radius: 4px 0 0 4px; transition: width 0.2s; min-width: 2px; }}
+        .adb-progress-bar .fill.rest {{ flex: 1; background: #e5e7eb; border-radius: 0 4px 4px 0; min-width: 0; }}
         .adb-progress-bar .fill.safe {{ background: #22c55e; }}
         .adb-progress-bar .fill.caution {{ background: #eab308; }}
         .adb-progress-bar .fill.unsafe {{ background: #ef4444; }}
-        .adb-progress-bar.threshold {{ background: linear-gradient(to right, #22c55e 0%, #22c55e 20%, #e2e8f0 20%, #e2e8f0 100%); }}
+        .adb-progress-bar .fill.illiq-safe {{ background: #22c55e; }}
+        .adb-progress-bar .fill.illiq-unsafe {{ background: #ef4444; }}
+        .adb-progress-threshold {{ position: absolute; top: -1px; bottom: -1px; width: 2px; background: #374151; border-radius: 1px; z-index: 2; }}
+        .adb-progress-threshold-label {{ position: absolute; top: 100%; left: 50%; transform: translate(-50%, 0.15rem); font-size: 9px; font-weight: 700; color: #374151; white-space: nowrap; }}
+        .adb-progress-status {{ font-size: 10px; font-weight: 600; color: #64748b; margin-top: 0.35rem; }}
+        .adb-progress-bar.threshold {{ background: #e5e7eb; }}
         .adb-progress-bar.threshold .fill {{ background: #ef4444; }}
         .adb-trigger-grid {{ display: grid; grid-template-columns: 6.5em 1fr; gap: 0.2rem 0.6rem; font-size: 12px; color: #333; align-items: baseline; }}
         .adb-trigger-grid .adb-trigger-k {{ color: #555; font-weight: 500; }}
@@ -1489,6 +1495,93 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
                 )
                 st.markdown(counterfactual_html, unsafe_allow_html=True)
 
+        # Runway & risk thresholds — dual-color bar (current | rest) + threshold marker + status label
+        runway_max = 24
+        runway_safe_mo = 12
+        runway_pct = min(100, (runway / runway_max) * 100) if runway and runway > 0 else 0
+        runway_pct_int = int(runway_pct)
+        if runway and runway > 0:
+            if runway >= 12:
+                runway_zone = "safe"
+                runway_status = "Within safe runway"
+            elif runway >= 6:
+                runway_zone = "caution"
+                runway_status = "Below safe runway"
+            else:
+                runway_zone = "unsafe"
+                runway_status = "Below safe runway"
+        else:
+            runway_zone = "unsafe"
+            runway_status = "Below safe runway"
+        runway_threshold_pct = (runway_safe_mo / runway_max) * 100  # 50%
+        runway_bar_html = (
+            f'<div class="adb-progress-wrap">'
+            f'<div class="adb-progress-label"><span>Runway</span><span>{runway:.1f} mo</span></div>'
+            f'<div class="adb-progress-bar">'
+            f'<div class="fill {runway_zone}" style="width:{runway_pct_int}%;"></div>'
+            f'<div class="fill rest" style="flex:1;"></div>'
+            f'<span class="adb-progress-threshold" style="left:{runway_threshold_pct:.0f}%;"><span class="adb-progress-threshold-label">Safe 12 mo</span></span>'
+            f'</div>'
+            f'<div class="adb-progress-status">{runway_status}</div>'
+            f'</div>'
+        )
+        illiq_pct = min(100, (illiquidity_ratio or 0) * 100)
+        illiq_pct_int = int(illiq_pct)
+        illiq_unsafe = (illiquidity_ratio or 0) >= 0.20
+        illiq_zone = "illiq-unsafe" if illiq_unsafe else "illiq-safe"
+        illiq_status = "Above illiquidity ceiling" if illiq_unsafe else "Below illiquidity ceiling"
+        illiq_threshold_pct = 20
+        illiq_bar_html = (
+            f'<div class="adb-progress-wrap">'
+            f'<div class="adb-progress-label"><span>Illiquidity</span><span>{illiq_pct:.0f}%</span></div>'
+            f'<div class="adb-progress-bar">'
+            f'<div class="fill {illiq_zone}" style="width:{illiq_pct_int}%;"></div>'
+            f'<div class="fill rest" style="flex:1;"></div>'
+            f'<span class="adb-progress-threshold" style="left:{illiq_threshold_pct}%;"><span class="adb-progress-threshold-label">20% ceiling</span></span>'
+            f'</div>'
+            f'<div class="adb-progress-status">{illiq_status}</div>'
+            f'</div>'
+        )
+        bars_card_html = (
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Runway &amp; risk thresholds</div>'
+            f'{runway_bar_html}'
+            f'{illiq_bar_html}'
+            f'</div>'
+        )
+        st.markdown(bars_card_html, unsafe_allow_html=True)
+
+        # Decision History — metrics
+        action = (existing_decision or {}).get("action", "").lower()
+        ts = (existing_decision or {}).get("timestamp", "")
+        if ts:
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                ts_fmt = dt.strftime("%H:%M")
+            except Exception:
+                ts_fmt = ts[:5]
+        else:
+            ts_fmt = "—"
+        status_text = action.upper() if action else "NOT DECIDED"
+        status_class = "adb-status-pending"
+        if action == "approved":
+            status_class = "adb-status-approved"
+        elif action == "rejected":
+            status_class = "adb-status-rejected"
+        record_html = (
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Decision History</div>'
+            f'<div class="adb-decision-status-box">'
+            f'<div class="adb-status {status_class}">{status_text}</div>'
+            f'</div>'
+            f'<div class="adb-meta"><span class="adb-key">Time:</span> {ts_fmt}</div>'
+            f'<div class="adb-meta"><span class="adb-key">Confidence at decision:</span> {conf:.2f}</div>'
+            f'<div class="adb-meta"><span class="adb-key">Override rate:</span> {override_pct:.1f}%</div>'
+            f'<div class="adb-meta"><span class="adb-key">Model:</span> {compliance.get("model_version", "—")}</div>'
+            f'</div>'
+        )
+        st.markdown(record_html, unsafe_allow_html=True)
+
     with right:
         # Risk & Tier — tier badge + action descriptor, confidence gauge with threshold
         tier_descriptor = {"red": "Manual review", "amber": "Human batch review", "green": "Auto-approve"}.get(tier, "Review")
@@ -1558,85 +1651,26 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
             impact_level, impact_class = "Medium", "medium"
         else:
             impact_level, impact_class = "Low", "low"
-        impact_tag_html = f'<span class="adb-impact-tag {impact_class}">Impact: {impact_level}</span>'
+        impact_tooltip = {"high": "High: ≥$50k expected AUA uplift", "medium": "Medium: $10k–$50k expected AUA uplift", "low": "Low: &lt;$10k expected AUA uplift"}.get(impact_class, "Expected AUA uplift range for this tier.")
+        impact_tooltip_esc = impact_tooltip.replace('"', "&quot;")
+        impact_tag_html = (
+            f'<span class="adb-impact-tag-wrap">'
+            f'<span class="adb-impact-tag {impact_class}">Impact: {impact_level}</span>'
+            f'<span class="adb-impact-info" title="{impact_tooltip_esc}">&#9432;</span>'
+            f'</span>'
+        )
         impact_html = (
             f'<div class="adb-view-card">'
             f'<div class="adb-title">Projected Impact</div>'
             f'{impact_tag_html}'
-            f'<div class="adb-impact-metric"><span class="k">AUA impact:</span> {aua_display}</div>'
+            f'<div class="adb-impact-subhead">Client-level</div>'
             f'<div class="adb-impact-metric"><span class="k">Runway:</span> {liq_display}</div>'
+            f'<div class="adb-impact-subhead">Portfolio-level</div>'
+            f'<div class="adb-impact-metric"><span class="k">AUA impact:</span> {aua_display}</div>'
             f'<div class="adb-impact-metric"><span class="k">Retention Δ:</span> {retention_delta}</div>'
             f'</div>'
         )
         st.markdown(impact_html, unsafe_allow_html=True)
-
-        # Runway & risk thresholds — progress bars with safe/unsafe zones
-        runway_max = 24
-        runway_pct = min(100, int((runway / runway_max) * 100)) if runway and runway > 0 else 0
-        if runway and runway > 0:
-            if runway >= 12:
-                runway_zone = "safe"
-            elif runway >= 6:
-                runway_zone = "caution"
-            else:
-                runway_zone = "unsafe"
-        else:
-            runway_zone = "unsafe"
-        runway_bar_html = (
-            f'<div class="adb-progress-wrap">'
-            f'<div class="adb-progress-label"><span>Runway</span><span>{runway:.1f} mo</span></div>'
-            f'<div class="adb-progress-bar"><div class="fill {runway_zone}" style="width:{runway_pct}%;"></div></div>'
-            f'<div class="adb-progress-label" style="font-size:10px;margin-top:0.1rem;"><span>0</span><span>6 mo</span><span>12 mo</span><span>24 mo</span></div>'
-            f'</div>'
-        )
-        illiq_pct = min(100, int((illiquidity_ratio or 0) * 100))
-        illiq_unsafe = (illiquidity_ratio or 0) >= 0.20
-        illiq_zone = "unsafe" if illiq_unsafe else "safe"
-        illiq_bar_html = (
-            f'<div class="adb-progress-wrap">'
-            f'<div class="adb-progress-label"><span>Illiquidity</span><span>{illiq_pct}% (threshold 20%)</span></div>'
-            f'<div class="adb-progress-bar"><div class="fill {illiq_zone}" style="width:{illiq_pct}%;"></div></div>'
-            f'</div>'
-        )
-        bars_card_html = (
-            f'<div class="adb-view-card">'
-            f'<div class="adb-title">Runway &amp; risk thresholds</div>'
-            f'{runway_bar_html}'
-            f'{illiq_bar_html}'
-            f'</div>'
-        )
-        st.markdown(bars_card_html, unsafe_allow_html=True)
-
-        # Decision History — metrics
-        action = (existing_decision or {}).get("action", "").lower()
-        ts = (existing_decision or {}).get("timestamp", "")
-        if ts:
-            try:
-                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                ts_fmt = dt.strftime("%H:%M")
-            except Exception:
-                ts_fmt = ts[:5]
-        else:
-            ts_fmt = "—"
-        status_text = action.upper() if action else "NOT DECIDED"
-        status_class = "adb-status-pending"
-        if action == "approved":
-            status_class = "adb-status-approved"
-        elif action == "rejected":
-            status_class = "adb-status-rejected"
-        record_html = (
-            f'<div class="adb-view-card">'
-            f'<div class="adb-title">Decision History</div>'
-            f'<div class="adb-decision-status-box">'
-            f'<div class="adb-status {status_class}">{status_text}</div>'
-            f'</div>'
-            f'<div class="adb-meta"><span class="adb-key">Time:</span> {ts_fmt}</div>'
-            f'<div class="adb-meta"><span class="adb-key">Confidence at decision:</span> {conf:.2f}</div>'
-            f'<div class="adb-meta"><span class="adb-key">Override rate:</span> {override_pct:.1f}%</div>'
-            f'<div class="adb-meta"><span class="adb-key">Model:</span> {compliance.get("model_version", "—")}</div>'
-            f'</div>'
-        )
-        st.markdown(record_html, unsafe_allow_html=True)
 
     # Advanced — Raw features: collapsible drawer for power users
     with st.expander("Advanced — Raw features", expanded=False):

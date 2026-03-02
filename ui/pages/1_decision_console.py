@@ -133,6 +133,10 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
             st.caption(why)
 
         with col_right:
+            # Override rate at moment of decision (duplicated from Audit Status for visibility)
+            compliance = get_compliance_info()
+            override_pct = compliance.get("override_rate_30d", 0)
+            st.caption(f"Override rate: **{override_pct:.1f}%** (30d)")
             # Green cases: no Approve/Reject buttons (auto-approve candidate); show status only if already decided
             if tier == "green":
                 if is_locked:
@@ -146,9 +150,23 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
                     action = existing.get("action", "").upper()
                     st.success(f"✓ {action}")
                 else:
+                    # Rejection reason quick-tags (optional) for learning loop
+                    rej_reason_key = f"rej_reason_{card_key}"
+                    rej_text_key = f"rej_text_{card_key}"
+                    rej_options = ["—", "Too aggressive", "Not suitable", "Client context", "Other"]
+                    st.caption("Reason (optional)")
+                    st.selectbox("Reject reason", rej_options, key=rej_reason_key, label_visibility="collapsed")
+                    reason_val = st.session_state.get(rej_reason_key, "—")
+                    if reason_val == "Other":
+                        st.text_input("Other reason", key=rej_text_key, placeholder="Brief reason…", label_visibility="collapsed")
                     b_rej, b_app = st.columns(2)
                     with b_rej:
                         if st.button("Reject", key=f"rej_{card_key}", use_container_width=True):
+                            reason = st.session_state.get(rej_reason_key, "—") or "—"
+                            if reason == "Other":
+                                reason = st.session_state.get(rej_text_key, "") or "Other"
+                            if reason == "—":
+                                reason = ""
                             st.session_state.decisions[user_id] = {
                                 "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
                                 "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
@@ -157,6 +175,7 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
                             record_feedback(
                                 user_id, hypothesis["persona_tier"], hypothesis["signal"],
                                 tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
+                                reason=reason,
                                 macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
                             )
                             show_micro_feedback_toast("Rejected")
@@ -328,14 +347,31 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
         unsafe_allow_html=True,
     )
 
-    # Approve / Reject / Escalate
+    # Override rate at moment of decision
+    compliance = get_compliance_info()
+    override_pct = compliance.get("override_rate_30d", 0)
+    st.caption(f"Override rate: **{override_pct:.1f}%** (30d rolling)")
+
+    # Approve / Reject with optional rejection reason
     existing = st.session_state.decisions.get(user_id, {})
     is_locked = existing.get("action") in ("approved", "rejected")
+
+    if not is_locked:
+        rej_options = ["—", "Too aggressive", "Not suitable", "Client context", "Other"]
+        st.caption("Rejection reason (optional)")
+        rej_reason = st.selectbox("Reason", rej_options, key=f"rej_reason_{user_id}", label_visibility="collapsed")
+        if rej_reason == "Other":
+            st.text_input("Other", key=f"rej_text_{user_id}", placeholder="Brief reason…", label_visibility="collapsed")
 
     btn1, btn2 = st.columns(2)
     with btn1:
         st.markdown('<div class="ws-btn-danger">', unsafe_allow_html=True)
         if st.button("Reject", use_container_width=True, disabled=is_locked, key=f"rej_{user_id}"):
+            reason = st.session_state.get(f"rej_reason_{user_id}", "—") or "—"
+            if reason == "Other":
+                reason = st.session_state.get(f"rej_text_{user_id}", "") or "Other"
+            if reason == "—":
+                reason = ""
             st.session_state.decisions[user_id] = {
                 "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
                 "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
@@ -345,6 +381,7 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
                 user_id, hypothesis["persona_tier"], hypothesis["signal"],
                 hypothesis["traceability"]["target_product"]["code"],
                 hypothesis["confidence"], gov.get("tier", ""), "rejected",
+                reason=reason,
                 macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
             )
             st.rerun()
