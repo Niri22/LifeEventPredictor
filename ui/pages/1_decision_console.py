@@ -42,6 +42,7 @@ from ui.lib import (
     metric_with_info,
     render_confidence_gauge,
     render_pulse_sidebar,
+    render_view_details_expander,
     show_micro_feedback_toast,
     get_system_timestamps,
     render_audit_status,
@@ -123,8 +124,6 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
             product_name = tp.get("name") or tp.get("code") or "—"
             st.caption(f"Pathway: {pathway} · {product_name}")
             why = hypothesis.get("nudge") or gov.get("reason") or "No rationale."
-            if len(why) > 120:
-                why = why[:117] + "..."
             st.caption(why)
 
         with col_right:
@@ -162,18 +161,9 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
                         show_micro_feedback_toast("Approved")
                         st.rerun()
 
-        # Inline expand: View Details
+        # Inline expand: View Details — structured transparency for decision clarity
         with st.expander("View Details ▾", expanded=False):
-            audit = trace.get("audit_log", [])
-            if audit:
-                top_features = sorted(audit, key=lambda x: x.get("importance", 0), reverse=True)[:5]
-                st.caption("**Feature contributions:** " + ", ".join(f"{a.get('feature', '')} ({float(a.get('importance', 0)):.2f})" for a in top_features))
-            st.caption(f"**Governance:** {gov.get('label', '')} — {gov.get('reason', '—')}")
-            if hypothesis.get("macro_reasons"):
-                st.caption("**Macro impact:** " + "; ".join(hypothesis["macro_reasons"][:3]))
-            suggested = tp.get("suggested_amount")
-            if suggested is not None:
-                st.caption(f"**Projected AUA impact:** {format_currency(float(suggested))}")
+            render_view_details_expander(hypothesis, existing_decision=existing if is_locked else None)
 
 
 # ---------------------------------------------------------------------------

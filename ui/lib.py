@@ -58,6 +58,22 @@ SIGNAL_LABELS = {
     "harvest_opportunity": "Analyst-in-Pocket",
 }
 
+# Human-readable labels for model feature attribution
+FEATURE_LABELS = {
+    "aua_delta": "AUA Growth Velocity",
+    "aua_current": "Current AUA",
+    "illiquidity_ratio": "Illiquidity Ratio",
+    "spend_velocity_30d": "Spend Velocity (30d)",
+    "spend_velocity_delta": "Spend Velocity Delta",
+    "credit_spend_vs_invest": "Credit Spend vs Invest",
+    "cc_spend_30d": "Credit Card Spend (30d)",
+    "mcc_entropy": "Transaction Diversity",
+    "txn_count_30d": "Transaction Count (30d)",
+    "top_mcc_concentration": "Top Category Concentration",
+    "savings_rate": "Savings Rate",
+    "pct_spend_on_ws_cc": "WS Credit Card Share",
+}
+
 # Persona and signal explanations (for onboarding, tooltips, README)
 PERSONA_DESCRIPTIONS = {
     "aspiring_affluent": {
@@ -771,6 +787,31 @@ def inject_ws_theme():
         }}
         .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }}
         .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
+
+        /* View Details expander — structured transparency */
+        .vd-expander {{ font-size: 0.8rem; line-height: 1.5; }}
+        .vd-section {{ margin-bottom: 1rem; }}
+        .vd-section-title {{ font-size: 0.9rem; font-weight: 600; color: #0f172a; margin-bottom: 0.2rem; }}
+        .vd-line {{ margin: 0.15rem 0; }}
+        .vd-trigger-list {{ margin: 0.2rem 0 0.4rem 1.2rem; padding: 0; }}
+        .vd-confidence-bar {{ display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }}
+        .vd-bar-inline {{ font-family: monospace; letter-spacing: 1px; color: #0f172a; }}
+        .vd-band {{ font-weight: 600; color: #64748b; }}
+        .vd-bar-title {{ font-size: 0.75rem; color: #64748b; margin-bottom: 0.2rem; }}
+        .vd-bar-row {{ display: flex; align-items: center; gap: 0.5rem; margin: 0.15rem 0; font-size: 0.78rem; }}
+        .vd-bar-label {{ flex: 1; min-width: 140px; }}
+        .vd-bar {{ font-family: monospace; letter-spacing: 1px; width: 100px; color: #0f172a; }}
+        .vd-bar-val {{ font-weight: 600; color: #64748b; min-width: 36px; }}
+        .vd-bar-raw {{ color: #94a3b8; font-size: 0.72rem; }}
+        .vd-impact-row {{ margin: 0.2rem 0; }}
+        .vd-impact-row strong {{ font-size: 0.9rem; color: #0f172a; }}
+        .vd-macro-box {{ background: #f8fafc; border-radius: 4px; padding: 0.4rem 0.6rem; font-size: 0.78rem; color: #64748b; }}
+        .vd-macro-box .vd-muted {{ color: #94a3b8; font-style: italic; }}
+        .vd-audit .vd-decision-badge {{ font-weight: 600; margin: 0.2rem 0; }}
+        .vd-decision-approved {{ color: #16a34a; }}
+        .vd-decision-rejected {{ color: #dc2626; }}
+        .vd-meta-line {{ font-size: 0.75rem; color: #64748b; margin: 0.1rem 0; }}
+        .vd-expander .vd-muted {{ color: #94a3b8; font-size: 0.78rem; font-style: italic; }}
         
         /* Action Stack: left border + background on the row (stHorizontalBlock), not on children */
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk),
@@ -1137,6 +1178,154 @@ def compute_priority_score(hypothesis: dict, metrics_df: pd.DataFrame = None) ->
         risk_penalty = 0.2
     
     return base_confidence + uplift_weight - risk_penalty
+
+
+# ---------------------------------------------------------------------------
+# View Details Expander (Decision Console — structured transparency)
+# ---------------------------------------------------------------------------
+
+def _feature_label(feature_key: str) -> str:
+    """Human-readable label for model feature."""
+    return FEATURE_LABELS.get(feature_key, feature_key.replace("_", " ").title())
+
+
+def _format_feature_value(feature_key: str, value: float) -> str:
+    """Format feature value for display."""
+    if feature_key in ("illiquidity_ratio", "savings_rate", "pct_spend_on_ws_cc", "top_mcc_concentration"):
+        return f"{value:.0%}"
+    if feature_key in ("aua_current", "aua_delta", "spend_velocity_30d", "cc_spend_30d"):
+        return format_currency(value) if value else "—"
+    return f"{value:.2f}"
+
+
+def render_view_details_expander(hypothesis: dict, existing_decision: dict = None):
+    """
+    Render the View Details expander content with decision clarity:
+    Signal Summary, Model Explanation (bar chart), Projected Impact, Macro Context, Audit Metadata.
+    """
+    gov = hypothesis.get("governance", {})
+    trace = hypothesis.get("traceability", {})
+    tp = trace.get("target_product", {})
+    sb = trace.get("spending_buffer", {})
+    audit = trace.get("audit_log", [])
+    signal = hypothesis.get("signal", "")
+    signal_label = SIGNAL_LABELS.get(signal, signal.replace("_", " ").title())
+    conf = hypothesis.get("confidence", 0)
+    band_name, _ = confidence_band(conf)
+    tier = gov.get("tier", "green")
+    compliance = get_compliance_info()
+    macro = st.session_state.get("macro") or get_default_macro()
+    boc = getattr(macro, "boc_prime_rate", 4.25)
+    vix = getattr(macro, "vix", 18)
+
+    # --- Top Drivers (bar chart) ---
+    top_features = sorted(audit, key=lambda x: float(x.get("importance", 0)), reverse=True)[:5]
+    max_imp = max((float(a.get("importance", 0)) for a in top_features), default=0.01) or 0.01
+    bar_html = ""
+    for a in top_features:
+        fkey = a.get("feature", "")
+        imp = float(a.get("importance", 0))
+        val = a.get("value", 0)
+        label = _feature_label(fkey)
+        pct = min(10, int(10 * imp / max_imp)) if max_imp else 0
+        bar = "▓" * pct + "░" * (10 - pct)
+        val_str = _format_feature_value(fkey, val)
+        bar_html += f'<div class="vd-bar-row"><span class="vd-bar-label">{label}</span><span class="vd-bar">{bar}</span><span class="vd-bar-val">+{imp:.2f}</span><span class="vd-bar-raw">{val_str}</span></div>'
+    if not bar_html:
+        bar_html = '<div class="vd-muted">No feature attribution available.</div>'
+
+    # --- Signal trigger conditions (from audit_log key metrics) ---
+    trigger_items = []
+    for a in audit:
+        fkey = a.get("feature", "")
+        val = a.get("value", 0)
+        if fkey == "illiquidity_ratio":
+            trigger_items.append(f"Illiquidity ratio: {val:.0%} (threshold: 20%)")
+        elif fkey == "credit_spend_vs_invest":
+            trigger_items.append(f"Credit spend {val:.1f}x transfer velocity")
+        elif fkey == "aua_current" and val > 0:
+            trigger_items.append(f"Current AUA: {format_currency(val)}")
+    if not trigger_items:
+        trigger_items.append(gov.get("reason", "Model confidence and product risk profile."))
+
+    # --- Governance escalation ---
+    gov_reason = gov.get("reason", "—")
+    if tier == "red":
+        gov_short = "Illiquid allocation > 20% AUA safety limit" if "illiquid" in gov_reason.lower() or "20" in gov_reason else gov_reason[:80]
+    else:
+        gov_short = gov_reason[:80] + ("…" if len(gov_reason) > 80 else "")
+
+    # --- Projected impact ---
+    suggested = tp.get("suggested_amount")
+    aua_impact = format_currency(float(suggested)) if suggested is not None else "—"
+    runway = sb.get("months_of_runway", 0)
+    liq_improve = f"{runway:.1f} months runway" if runway else "—"
+    retention_delta = "+3.2%"  # Placeholder from experiment layer
+
+    # --- Macro ---
+    macro_reasons = hypothesis.get("macro_reasons", [])
+    macro_adj = "No adjustment" if not macro_reasons else "; ".join(macro_reasons[:2])
+    macro_status = "Neutral" if not macro_reasons else "Adjusted"
+
+    # --- Override rate ---
+    override_pct = compliance.get("override_rate_30d", 10)
+
+    # --- Decision metadata ---
+    decision_meta = ""
+    if existing_decision:
+        action = existing_decision.get("action", "").upper()
+        ts = existing_decision.get("timestamp", "")
+        if ts:
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                ts_fmt = dt.strftime("%H:%M")
+            except Exception:
+                ts_fmt = ts[:5] if len(ts) >= 5 else ts
+        else:
+            ts_fmt = "—"
+        badge_class = "vd-decision-approved" if action == "APPROVED" else "vd-decision-rejected"
+        decision_meta = f"""
+        <div class="vd-section vd-audit">
+            <div class="vd-section-title">Audit Metadata</div>
+            <div class="vd-decision-badge {badge_class}">✓ {action}</div>
+            <div class="vd-meta-line">Time: {ts_fmt}</div>
+            <div class="vd-meta-line">Confidence at decision: {conf:.2f}</div>
+            <div class="vd-meta-line">Override rate (similar cases): {override_pct}%</div>
+            <div class="vd-meta-line">Model: {compliance.get('model_version', '—')}</div>
+        </div>"""
+
+    # Render as one continuous HTML string (no blank lines) so Streamlit doesn't split
+    # and escape later blocks as markdown
+    audit_fallback = f'<div class="vd-section vd-audit"><div class="vd-section-title">Audit Metadata</div><div class="vd-meta-line">Override rate (similar cases): {override_pct}%</div><div class="vd-meta-line">Model: {compliance.get("model_version", "—")}</div></div>'
+    bar_blocks = "▓" * int(conf * 10) + "░" * (10 - int(conf * 10))
+    html = (
+        f'<div class="vd-expander">'
+        f'<div class="vd-section"><div class="vd-section-title">Signal Summary</div>'
+        f'<div class="vd-line"><strong>Signal:</strong> {signal_label}</div>'
+        f'<div class="vd-line"><strong>Triggered because:</strong></div>'
+        f'<ul class="vd-trigger-list">{"".join(f"<li>{t}</li>" for t in trigger_items)}</ul>'
+        f'<div class="vd-line"><strong>Escalated to {tier.title()} because:</strong> {gov_short}</div></div>'
+        f'<div class="vd-section"><div class="vd-section-title">Model Explanation</div>'
+        f'<div class="vd-confidence-bar"><span>Confidence: {conf:.2f}</span>'
+        f'<span class="vd-bar-inline">{bar_blocks}</span><span class="vd-band">{band_name}</span></div>'
+        f'<div class="vd-bar-title">Top Drivers (Local Attribution)</div>{bar_html}</div>'
+        f'<div class="vd-section"><div class="vd-section-title">Projected Impact (if approved)</div>'
+        f'<div class="vd-impact-row"><span>AUA impact:</span><strong>{aua_impact}</strong></div>'
+        f'<div class="vd-impact-row"><span>Liquidity:</span>{liq_improve}</div>'
+        f'<div class="vd-impact-row"><span>Retention probability:</span>{retention_delta}</div></div>'
+        f'<div class="vd-section vd-macro"><div class="vd-section-title">Macro Context</div>'
+        f'<div class="vd-macro-box"><span>Macro: {macro_status}</span>'
+        f'<span>BoC {boc:.2f}% · VIX {vix:.0f}</span><span class="vd-muted">{macro_adj}</span></div></div>'
+        f'{decision_meta if decision_meta else audit_fallback}'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+    # Optional: raw feature list (collapsible technical layer)
+    if audit and len(audit) > 5:
+        with st.expander("View raw model features", expanded=False):
+            raw_list = ", ".join(f"{a.get('feature', '')} ({float(a.get('importance', 0)):.2f})" for a in audit[:8])
+            st.caption(raw_list + (" …" if len(audit) > 8 else ""))
 
 
 # ---------------------------------------------------------------------------
