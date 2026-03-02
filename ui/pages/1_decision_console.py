@@ -472,6 +472,7 @@ def main():
 
     # Tier segmented control (no full page reload — session state)
     st.markdown('<div class="ws-section-header">Case Queue</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="ws-tier-segment-row" data-current-tier="{current_tier}"></div>', unsafe_allow_html=True)
     seg_r, seg_a, seg_g = st.columns(3)
     with seg_r:
         if st.button(f"🔴 Red ({tier_counts['red']})", key="seg_red", use_container_width=True, type="primary" if current_tier == "red" else "secondary"):
