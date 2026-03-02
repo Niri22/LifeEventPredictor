@@ -466,26 +466,30 @@ def inject_ws_theme():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
         
-        /* Color system - disciplined palette */
+        /* Color system - disciplined palette, stronger contrast */
         :root {{ 
-            --ws-midnight: {MIDNIGHT}; 
-            --ws-off-white: {COIN_WHITE}; 
+            --ws-midnight: #111;
+            --ws-off-white: #fff;
             --ws-gold: {WS_GOLD}; 
             --ws-sage: {SAGE_GREEN}; 
-            --ws-stone: {STONE_GREY}; 
+            --ws-stone: #e8e8e8;
             --ws-radius: 8px;
             --ws-red: #DC2626;      /* Risk */
             --ws-amber: #F59E0B;    /* Review */
             --ws-green: #059669;    /* Opportunity */
             --ws-primary: {WS_GOLD}; /* Action */
-            --ws-muted: #6B7280;    /* Secondary text */
+            --ws-muted: #666;       /* Metadata */
+            --ws-secondary: #444;   /* Secondary text */
+            --ws-primary-text: #1a1a1a;
         }}
         
-        /* Base app styling - flat, minimal borders */
+        /* Base app styling - flat, minimal borders, readable body */
         .stApp {{ 
             background-color: var(--ws-off-white); 
-            color: var(--ws-midnight); 
-            font-family: 'Inter', system-ui, sans-serif; 
+            color: var(--ws-primary-text); 
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 15px;
+            line-height: 1.5;
         }}
         
         /* Hide Streamlit branding and default navigation */
@@ -506,12 +510,12 @@ def inject_ws_theme():
             line-height: 1.2;
         }}
         
-        /* Section headers: medium bold */
+        /* Section headers: 16px semibold */
         .ws-section-header {{ 
             font-family: 'Inter', sans-serif; 
-            font-size: 1.25rem; 
+            font-size: 16px; 
             font-weight: 600; 
-            color: var(--ws-midnight); 
+            color: var(--ws-primary-text); 
             margin: 2rem 0 1rem 0;
             letter-spacing: -0.01em;
         }}
@@ -519,9 +523,9 @@ def inject_ws_theme():
         /* Subsection headers */
         .ws-subsection {{ 
             font-family: 'Inter', sans-serif; 
-            font-size: 1rem; 
+            font-size: 16px; 
             font-weight: 600; 
-            color: var(--ws-midnight); 
+            color: var(--ws-primary-text); 
             margin: 1.5rem 0 0.75rem 0;
         }}
         
@@ -752,8 +756,8 @@ def inject_ws_theme():
         /* Tight spacing — control room feel, not document */
         .ws-main {{ padding-top: 0.4rem !important; padding-bottom: 1.5rem !important; }}
         .ws-page-title {{ margin-top: 0 !important; margin-bottom: 0.2rem !important; font-size: 1.6rem !important; }}
-        [data-testid="stAppViewContainer"] {{ padding-top: 0.5rem !important; }}
-        [data-testid="block-container"] {{ padding-top: 0.5rem !important; padding-bottom: 1rem !important; }}
+        [data-testid="stAppViewContainer"] {{ padding-top: 0.5rem !important; background: #fff !important; }}
+        [data-testid="block-container"] {{ padding-top: 0.5rem !important; padding-bottom: 1rem !important; background: #fff !important; color: #1a1a1a; font-size: 15px; line-height: 1.5; }}
         .ws-secondary {{ margin-bottom: 0.1rem !important; }}
         .ws-divider {{ margin: 0.6rem 0 !important; }}
         .ws-section-header {{ margin-top: 0.25rem !important; margin-bottom: 0.3rem !important; }}
@@ -788,42 +792,61 @@ def inject_ws_theme():
         .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }}
         .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
 
-        /* AI Decision Brief — minimalist institutional: white, thin dividers, small badges */
-        .adb-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.4rem 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.5rem; background: #fff; }}
-        .adb-section {{ background: #fff; padding: 0.35rem 0; margin-bottom: 0.25rem; border-bottom: 1px solid #e2e8f0; }}
+        /* AI Decision Brief — structured 2-col, high density, 15–20% tighter */
+        .adb-header-block {{ background: #fff; border-bottom: 1px solid #ddd; margin-bottom: 0.35rem; padding: 0.35rem 0; }}
+        .adb-header-left .adb-line {{ font-size: 14px; color: #1a1a1a; margin: 0.08rem 0; line-height: 1.42; }}
+        .adb-header-right {{ display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; }}
+        .adb-conf-value {{ font-size: 20px; font-weight: 700; color: #0F5132; letter-spacing: -0.02em; line-height: 1.2; }}
+        .adb-conf-value-mid {{ color: #444; }}
+        .adb-conf-value-low {{ color: #b91c1c; }}
+        .adb-conf-bar-wrap {{ width: 100%; max-width: 120px; height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; margin-top: 0.15rem; }}
+        .adb-conf-bar-fill {{ height: 100%; border-radius: 3px; background: #0F5132; }}
+        .adb-conf-bar-fill.adb-conf-bar-mid {{ background: #78716c; }}
+        .adb-conf-bar-fill.adb-conf-bar-low {{ background: #b91c1c; }}
+        .adb-risk-label {{ font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.1rem; }}
+        .adb-band-high {{ color: #0F5132; font-weight: 600; }}
+        .adb-band-mid {{ color: #666; }}
+        .adb-band-low {{ color: #b91c1c; font-weight: 600; }}
+        .adb-macro-reason {{ font-size: 13px; color: #666; margin-bottom: 0.4rem; padding-bottom: 0.35rem; border-bottom: 1px solid #ddd; }}
+        .adb-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.3rem 0; border-bottom: 1px solid #ddd; margin-bottom: 0.35rem; background: #fff; line-height: 1.45; }}
+        .adb-section {{ background: #fff; padding: 0.28rem 0; margin-bottom: 0.25rem; border-bottom: 1px solid #ddd; line-height: 1.42; }}
         .adb-section:last-of-type {{ border-bottom: none; }}
-        .adb-title {{ font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem; }}
-        .adb-line {{ font-size: 0.8rem; color: #334155; margin: 0.06rem 0; }}
-        .adb-key {{ color: #94a3b8; font-weight: 500; }}
-        .adb-emph {{ color: #0f172a; font-weight: 600; }}
-        .adb-badge {{ display: inline-block; padding: 0.12rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }}
+        .adb-case-title {{ font-size: 18px; font-weight: 600; color: #111; letter-spacing: -0.01em; }}
+        .adb-title {{ font-size: 12px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.22rem; }}
+        .adb-line {{ font-size: 14px; color: #1a1a1a; margin: 0.08rem 0; line-height: 1.42; }}
+        .adb-key {{ color: #444; font-weight: 500; }}
+        .adb-emph {{ color: #111; font-weight: 600; font-size: 15px; }}
+        .adb-badge {{ display: inline-block; padding: 0.18rem 0.45rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em; }}
         .adb-badge-red {{ background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }}
-        .adb-badge-green {{ background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }}
-        .adb-badge-neutral {{ background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }}
-        .adb-conf {{ font-size: 0.95rem; font-weight: 700; }}
+        .adb-badge-green {{ background: #ecfdf5; color: #0F5132; border: 1px solid #a7f3d0; font-size: 16px; font-weight: 700; }}
+        .adb-badge-neutral {{ background: #f5f5f5; color: #444; border: 1px solid #e0e0e0; }}
+        .adb-macro-grid {{ display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.75rem; font-size: 13px; color: #444; }}
+        .adb-macro-grid .k {{ color: #666; }}
+        .adb-impact-block {{ border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.4rem 0.5rem; background: #fafafa; }}
+        .adb-decision-status-box {{ border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.35rem 0.5rem; margin-bottom: 0.3rem; background: #fafafa; }}
         .adb-attr-header, .adb-attr-row {{
             display: grid;
             grid-template-columns: 1.55fr 1.45fr 0.5fr 0.65fr;
-            gap: 0.25rem;
+            gap: 0.28rem;
             align-items: center;
         }}
-        .adb-attr-header {{ font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; font-weight: 600; }}
-        .adb-attr-row {{ font-size: 0.75rem; margin: 0.1rem 0; }}
-        .adb-attr-driver {{ color: #334155; font-weight: 500; }}
-        .adb-track {{ background: #e2e8f0; border-radius: 2px; height: 6px; overflow: hidden; }}
-        .adb-fill {{ background: #94a3b8; height: 100%; border-radius: 2px; }}
-        .adb-attr-val {{ font-weight: 600; text-align: right; color: #64748b; font-size: 0.72rem; }}
-        .adb-attr-raw {{ color: #94a3b8; font-size: 0.7rem; text-align: right; }}
-        .adb-impact-amount {{ font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; margin: 0.1rem 0 0.15rem; }}
-        .adb-impact-positive {{ color: #15803d; }}
-        .adb-impact-neutral {{ color: #64748b; }}
-        .adb-status {{ display: inline-block; padding: 0.12rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-bottom: 0.15rem; }}
-        .adb-status-approved {{ background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }}
+        .adb-attr-header {{ font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; font-weight: 600; }}
+        .adb-attr-row {{ font-size: 14px; margin: 0.12rem 0; line-height: 1.45; }}
+        .adb-attr-driver {{ color: #1a1a1a; font-weight: 500; }}
+        .adb-track {{ background: #e0e0e0; border-radius: 2px; height: 6px; overflow: hidden; }}
+        .adb-fill {{ background: #999; height: 100%; border-radius: 2px; }}
+        .adb-attr-val {{ font-weight: 700; text-align: right; color: #111; font-size: 14px; }}
+        .adb-attr-raw {{ color: #555; font-size: 13px; text-align: right; }}
+        .adb-impact-amount {{ font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 0.12rem 0 0.2rem; line-height: 1.3; }}
+        .adb-impact-positive {{ color: #0F5132; }}
+        .adb-impact-unavail {{ font-size: 14px; font-weight: 500; color: #333; margin: 0.12rem 0; line-height: 1.48; }}
+        .adb-status {{ display: inline-block; padding: 0.14rem 0.45rem; border-radius: 4px; font-size: 13px; font-weight: 600; margin-bottom: 0.15rem; }}
+        .adb-status-approved {{ background: #0F5132; color: #fff; border: 1px solid #0F5132; }}
         .adb-status-rejected {{ background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }}
-        .adb-status-pending {{ background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }}
-        .adb-meta {{ font-size: 0.72rem; color: #94a3b8; margin: 0.04rem 0; }}
-        .adb-divider {{ height: 1px; background: #e2e8f0; margin: 0.35rem 0; }}
-        .adb-muted {{ color: #94a3b8; font-size: 0.72rem; }}
+        .adb-status-pending {{ background: #f5f5f5; color: #666; border: 1px solid #e0e0e0; }}
+        .adb-meta {{ font-size: 13px; color: #666; margin: 0.06rem 0; line-height: 1.45; }}
+        .adb-divider {{ height: 1px; background: #ddd; margin: 0.35rem 0; }}
+        .adb-muted {{ color: #666; font-size: 14px; }}
         
         /* Action Stack: left border + background on the row (stHorizontalBlock), not on children */
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk),
@@ -1249,24 +1272,51 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
             current_aua = val
 
     tier_badge_class = "adb-badge-red" if tier == "red" else ("adb-badge-green" if tier == "green" else "adb-badge-neutral")
-    conf_badge_class = "adb-badge-red" if conf < 0.60 else ("adb-badge-green" if conf >= 0.75 else "adb-badge-neutral")
+    conf_value_class = "adb-conf-value" + (" adb-conf-value-low" if conf < 0.60 else (" adb-conf-value-mid" if conf < 0.75 else ""))
+    conf_bar_pct = min(100, int(conf * 100))
+    conf_bar_class = "adb-conf-bar-fill" + (" adb-conf-bar-low" if conf < 0.60 else (" adb-conf-bar-mid" if conf < 0.75 else ""))
+    band_label_class = "adb-band-high" if band_name == "High" else ("adb-band-low" if band_name == "Low" else "adb-band-mid")
     product_name = tp.get("name") or tp.get("code") or "—"
     workflow = gov.get("workflow", "—")
+    macro_reasons = hypothesis.get("macro_reasons", [])
+    macro_reason_line = "; ".join(macro_reasons[:2]) if macro_reasons else "No macro adjustments applied — conditions within normal range."
 
-    # 1) Merged header row: Signal | Tier badge | Persona | Pathway | Confidence badge
-    header_row_html = (
-        f'<div class="adb-row" style="background:#fff;">'
-        f'<span class="adb-emph">{signal_label}</span>'
-        f'<span class="adb-badge {tier_badge_class}">{tier_label}</span>'
-        f'<span class="adb-line" style="margin:0;">{persona_label}</span>'
-        f'<span class="adb-line" style="margin:0;">{pathway_label}</span>'
-        f'<span class="adb-badge {conf_badge_class}" style="margin-left:auto;">{conf:.2f}</span>'
+    # 0) Macro Reason — top of expander (single line)
+    macro_reason_html = (
+        f'<div class="adb-macro-reason">'
+        f'<div class="adb-key" style="font-size:12px;margin-bottom:0.15rem;">Macro Reason:</div>'
+        f'<div class="adb-line" style="margin:0;">• {macro_reason_line}</div>'
         f'</div>'
-        f'<div class="adb-meta">Product: {product_name} · {workflow}</div>'
     )
-    st.markdown(header_row_html, unsafe_allow_html=True)
+    st.markdown(macro_reason_html, unsafe_allow_html=True)
 
-    # 2) Body in 2-column layout — white sections, thin dividers.
+    # 1) Decision Header & Confidence — 2-column: left = identity, right = Confidence title + value + bar + band label
+    col1, col2 = st.columns([3, 2])
+    with col1:
+        header_left = (
+            f'<div class="adb-header-block">'
+            f'<div class="adb-title">Decision Header</div>'
+            f'<div class="adb-header-left">'
+            f'<div class="adb-line"><span class="adb-key">Signal:</span> <span class="adb-emph">{signal_label}</span></div>'
+            f'<div class="adb-line"><span class="adb-key">Tier:</span> <span class="adb-badge {tier_badge_class}">{tier_label}</span></div>'
+            f'<div class="adb-line"><span class="adb-key">Persona:</span> {persona_label}</div>'
+            f'<div class="adb-line"><span class="adb-key">Pathway:</span> {pathway_label}</div>'
+            f'</div></div>'
+        )
+        st.markdown(header_left, unsafe_allow_html=True)
+    with col2:
+        header_right = (
+            f'<div class="adb-header-block">'
+            f'<div class="adb-title">Confidence</div>'
+            f'<div class="adb-header-right">'
+            f'<div class="{conf_value_class}">{conf:.2f}</div>'
+            f'<div class="adb-conf-bar-wrap"><div class="{conf_bar_class}" style="width:{conf_bar_pct}%;"></div></div>'
+            f'<div class="adb-risk-label {band_label_class}">{band_name}</div>'
+            f'</div></div>'
+        )
+        st.markdown(header_right, unsafe_allow_html=True)
+
+    # 2) Body — 2-column: left = Signal Summary, Triggers, Escalation, Macro, Counterfactual; right = Attribution, Impact, Decision Record
     trigger_items = []
     if current_aua is not None and current_aua > 0:
         trigger_items.append(f"Current AUA: {format_currency(current_aua)}")
@@ -1297,15 +1347,17 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
         f'<div class="adb-line"><span class="adb-key">Escalation:</span> {gov.get("reason", "—")}</div>'
         f'{liquidity_lines}</div>'
     )
-
-    macro_reasons = hypothesis.get("macro_reasons", [])
     macro_status = "Neutral" if not macro_reasons else "Adjusted"
-    macro_adjustment = "None" if not macro_reasons else "; ".join(macro_reasons[:2])
+    macro_adjustment = "No macro adjustments applied—conditions within normal range." if not macro_reasons else "; ".join(macro_reasons[:2])
     macro_html = (
         f'<div class="adb-section">'
-        f'<div class="adb-title">Macro</div>'
-        f'<div class="adb-meta">BoC {boc:.2f}% · VIX {vix:.0f} · {macro_status} · {macro_adjustment}</div>'
-        f'</div>'
+        f'<div class="adb-title">Macro Context</div>'
+        f'<div class="adb-macro-grid">'
+        f'<span class="k">Macro Overlay:</span><span>{macro_status}</span>'
+        f'<span class="k">BoC:</span><span>{boc:.2f}%</span>'
+        f'<span class="k">VIX:</span><span>{vix:.0f}</span>'
+        f'<span class="k">Adjustment Applied:</span><span>{macro_adjustment}</span>'
+        f'</div></div>'
     )
 
     left, right = st.columns([3, 2])
@@ -1342,7 +1394,7 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
                     f'</div>'
                 )
             attr_body = (
-                '<div class="adb-attr-header"><div>Driver</div><div>Contribution</div><div>Value</div><div>Raw</div></div>'
+                '<div class="adb-attr-header"><div>DRIVER</div><div>CONTRIBUTION</div><div>VALUE</div><div>RAW</div></div>'
                 + "".join(attr_rows)
             )
         else:
@@ -1355,13 +1407,18 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
         aua_impact = format_currency(float(suggested)) if has_aua else "Estimate unavailable"
         liq_improve = f"{runway:.1f} months runway" if runway > 0 else "Not available"
         retention_delta = "+3.2%"
-        impact_amount_class = "adb-impact-positive" if has_aua else "adb-impact-neutral"
+        if has_aua:
+            impact_value_html = f'<div class="adb-impact-amount adb-impact-positive">{aua_impact}</div>'
+        else:
+            impact_value_html = f'<div class="adb-impact-amount" style="color:#333;font-size:15px;">{aua_impact}</div>'
         impact_html = (
             f'<div class="adb-section">'
-            f'<div class="adb-title">Projected Impact</div>'
-            f'<div class="adb-impact-amount {impact_amount_class}">{aua_impact}</div>'
-            f'<div class="adb-meta">Liquidity: {liq_improve} · Retention: {retention_delta}</div>'
-            f'</div>'
+            f'<div class="adb-impact-block">'
+            f'<div class="adb-title">Projected Impact (If Approved)</div>'
+            f'{impact_value_html}'
+            f'<div class="adb-meta">Liquidity improvement: {liq_improve}</div>'
+            f'<div class="adb-meta">Retention probability change: {retention_delta}</div>'
+            f'</div></div>'
         )
         st.markdown(impact_html, unsafe_allow_html=True)
 
@@ -1384,8 +1441,13 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
         record_html = (
             f'<div class="adb-section">'
             f'<div class="adb-title">Decision Record</div>'
+            f'<div class="adb-decision-status-box">'
             f'<div class="adb-status {status_class}">{status_text}</div>'
-            f'<div class="adb-meta">{ts_fmt} · Conf {conf:.2f} · Override {override_pct:.1f}% · {compliance.get("model_version", "—")}</div>'
+            f'</div>'
+            f'<div class="adb-meta"><span class="adb-key">Time:</span> {ts_fmt}</div>'
+            f'<div class="adb-meta"><span class="adb-key">Confidence at decision:</span> {conf:.2f}</div>'
+            f'<div class="adb-meta"><span class="adb-key">Similar-case override rate:</span> {override_pct:.1f}%</div>'
+            f'<div class="adb-meta"><span class="adb-key">Model version:</span> {compliance.get("model_version", "—")}</div>'
             f'</div>'
         )
         st.markdown(record_html, unsafe_allow_html=True)
@@ -1411,7 +1473,7 @@ def render_audit_summary():
     st.markdown(f"""
     <div style="margin-top:0.5rem;">
         <div class="ws-subsection" style="margin: 0 0 0.75rem 0;">Audit & Compliance</div>
-        <div style="background:#f1f5f9;border-radius:6px;padding:0.6rem 0.9rem;font-size:0.82rem;color:#334155;line-height:1.8;">
+        <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:0.6rem 0.9rem;font-size:14px;color:#1a1a1a;line-height:1.5;">
             <span class="ws-status-indicator healthy"></span><strong style="color:#16a34a;">100%</strong> decisions logged (retention: <strong>{compliance['data_retention_days']}</strong> days)<br>
             <span class="ws-status-indicator warning"></span>Override rate: <strong style="color:{override_color};">{override_pct}%</strong> (30d rolling)<br>
             <span class="ws-status-indicator healthy"></span>Status: <span style="background:{status_color};color:white;padding:0.1rem 0.5rem;border-radius:4px;font-weight:600;font-size:0.75rem;">{status}</span><br>
@@ -1490,14 +1552,14 @@ def render_governance_constraints():
     st.markdown("""
     <div style="margin-bottom:0.75rem;">
         <div class="ws-subsection" style="margin: 0 0 0.75rem 0;">Governance Thresholds</div>
-        <div style="background:#f1f5f9;border-radius:6px;padding:0.6rem 0.9rem;font-size:0.82rem;color:#334155;line-height:1.8;">
+        <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:0.6rem 0.9rem;font-size:14px;color:#1a1a1a;line-height:1.5;">
             <strong style="color:#0f172a;">Auto-Escalation Rules:</strong><br>
             • Illiquid allocation <span style="color:#dc2626;font-weight:600;">&gt;20% AUA</span> → Manual review required<br>
             • Credit exposure <span style="color:#dc2626;font-weight:600;">&gt;5x monthly income</span> → Compliance review<br>
             • Model confidence <span style="color:#d97706;font-weight:600;">&lt;0.60</span> → Auto-approval blocked<br>
             • Product value <span style="color:#d97706;font-weight:600;">&gt;$50k</span> → Senior approval required
         </div>
-        <div style="background:#f0fdf4;border-radius:6px;padding:0.6rem 0.9rem;font-size:0.82rem;color:#334155;line-height:1.8;margin-top:0.5rem;">
+        <div style="background:#fff;border:1px solid #a7f3d0;border-radius:6px;padding:0.6rem 0.9rem;font-size:14px;color:#1a1a1a;line-height:1.5;margin-top:0.5rem;">
             <strong style="color:#0f172a;">Regulatory Compliance:</strong><br>
             • PIPEDA privacy impact assessed <span style="color:#16a34a;font-weight:600;">✓</span><br>
             • OSFI ML/AI guidelines compliant <span style="color:#16a34a;font-weight:600;">✓</span><br>
