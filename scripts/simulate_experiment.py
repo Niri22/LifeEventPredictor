@@ -28,46 +28,35 @@ from src.experiments.reweight import apply_uplift_reweighting
 
 
 def make_demo_hypotheses():
-    """Create a few minimal hypotheses for demo (eligible for experiment)."""
+    """Create demo hypotheses for experiment (eligible: green/amber, allow_products). 50/50 split gives ~half control."""
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc).isoformat()
     return [
-        {
-            "user_id": "demo_user_1",
-            "persona_tier": "aspiring_affluent",
-            "signal": "leapfrog_ready",
-            "confidence": 0.82,
-            "governance": {"tier": "green"},
-            "traceability": {"target_product": {"code": "RRSP_LOAN", "name": "Retirement Accelerator"}},
-            "staged_at": now,
-        },
-        {
-            "user_id": "demo_user_2",
-            "persona_tier": "aspiring_affluent",
-            "signal": "leapfrog_ready",
-            "confidence": 0.78,
-            "governance": {"tier": "amber"},
-            "traceability": {"target_product": {"code": "RRSP_LOAN", "name": "Retirement Accelerator"}},
-            "staged_at": now,
-        },
-        {
-            "user_id": "demo_user_3",
-            "persona_tier": "sticky_family_leader",
-            "signal": "liquidity_warning",
-            "confidence": 0.75,
-            "governance": {"tier": "green"},
-            "traceability": {"target_product": {"code": "SUMMIT_PORTFOLIO", "name": "Summit Portfolio"}},
-            "staged_at": now,
-        },
-        {
-            "user_id": "demo_user_4",
-            "persona_tier": "generation_nerd",
-            "signal": "harvest_opportunity",
-            "confidence": 0.88,
-            "governance": {"tier": "amber"},
-            "traceability": {"target_product": {"code": "AI_RESEARCH_DIRECT_INDEX", "name": "AI Research + Direct Index"}},
-            "staged_at": now,
-        },
+        {"user_id": "demo_user_1", "persona_tier": "aspiring_affluent", "signal": "leapfrog_ready", "confidence": 0.82,
+         "governance": {"tier": "green"}, "traceability": {"target_product": {"code": "RRSP_LOAN", "name": "Retirement Accelerator"}}, "staged_at": now},
+        {"user_id": "demo_user_2", "persona_tier": "aspiring_affluent", "signal": "leapfrog_ready", "confidence": 0.78,
+         "governance": {"tier": "amber"}, "traceability": {"target_product": {"code": "RRSP_LOAN", "name": "Retirement Accelerator"}}, "staged_at": now},
+        {"user_id": "demo_user_3", "persona_tier": "sticky_family_leader", "signal": "liquidity_warning", "confidence": 0.75,
+         "governance": {"tier": "green"}, "traceability": {"target_product": {"code": "SUMMIT_PORTFOLIO", "name": "Summit Portfolio"}}, "staged_at": now},
+        {"user_id": "demo_user_4", "persona_tier": "generation_nerd", "signal": "harvest_opportunity", "confidence": 0.88,
+         "governance": {"tier": "amber"}, "traceability": {"target_product": {"code": "AI_RESEARCH_DIRECT_INDEX", "name": "AI Research + Direct Index"}}, "staged_at": now},
+        # Extra demo users so we get more control assignments (50/50 → ~6 treatment, ~6 control)
+        {"user_id": "demo_user_5", "persona_tier": "aspiring_affluent", "signal": "leapfrog_ready", "confidence": 0.80,
+         "governance": {"tier": "green"}, "traceability": {"target_product": {"code": "RRSP_LOAN", "name": "Retirement Accelerator"}}, "staged_at": now},
+        {"user_id": "demo_user_6", "persona_tier": "aspiring_affluent", "signal": "leapfrog_ready", "confidence": 0.72,
+         "governance": {"tier": "amber"}, "traceability": {"target_product": {"code": "RRSP_LOAN", "name": "Retirement Accelerator"}}, "staged_at": now},
+        {"user_id": "demo_user_7", "persona_tier": "sticky_family_leader", "signal": "liquidity_warning", "confidence": 0.79,
+         "governance": {"tier": "green"}, "traceability": {"target_product": {"code": "SUMMIT_PORTFOLIO", "name": "Summit Portfolio"}}, "staged_at": now},
+        {"user_id": "demo_user_8", "persona_tier": "sticky_family_leader", "signal": "liquidity_warning", "confidence": 0.71,
+         "governance": {"tier": "amber"}, "traceability": {"target_product": {"code": "SUMMIT_PORTFOLIO", "name": "Summit Portfolio"}}, "staged_at": now},
+        {"user_id": "demo_user_9", "persona_tier": "generation_nerd", "signal": "harvest_opportunity", "confidence": 0.85,
+         "governance": {"tier": "green"}, "traceability": {"target_product": {"code": "AI_RESEARCH_DIRECT_INDEX", "name": "AI Research + Direct Index"}}, "staged_at": now},
+        {"user_id": "demo_user_10", "persona_tier": "generation_nerd", "signal": "harvest_opportunity", "confidence": 0.76,
+         "governance": {"tier": "amber"}, "traceability": {"target_product": {"code": "AI_RESEARCH_DIRECT_INDEX", "name": "AI Research + Direct Index"}}, "staged_at": now},
+        {"user_id": "demo_user_11", "persona_tier": "aspiring_affluent", "signal": "leapfrog_ready", "confidence": 0.84,
+         "governance": {"tier": "green"}, "traceability": {"target_product": {"code": "RRSP_LOAN", "name": "Retirement Accelerator"}}, "staged_at": now},
+        {"user_id": "demo_user_12", "persona_tier": "sticky_family_leader", "signal": "liquidity_warning", "confidence": 0.73,
+         "governance": {"tier": "amber"}, "traceability": {"target_product": {"code": "SUMMIT_PORTFOLIO", "name": "Summit Portfolio"}}, "staged_at": now},
     ]
 
 
@@ -76,11 +65,16 @@ def main():
     seed = config.get("experiment", {}).get("seed", 42)
     rng = random.Random(seed)
 
-    print("1. Creating demo hypotheses and assigning to treatment/control...")
+    # Use 50/50 treatment/control for demo so we get both groups
+    demo_config = dict(config)
+    demo_config.setdefault("experiment", {})
+    demo_config["experiment"] = {**config.get("experiment", {}), "treatment_ratio": 0.5}
+
+    print("1. Creating demo hypotheses and assigning to treatment/control (50/50 for demo)...")
     hypotheses = make_demo_hypotheses()
     assignments = []
     for h in hypotheses:
-        rec = assign_to_experiment(h, config, rng)
+        rec = assign_to_experiment(h, demo_config, rng)
         if rec:
             assignments.append(rec)
             print(f"   Assigned {h['user_id']} -> {rec['assignment']}")

@@ -115,6 +115,6 @@ def adjust_confidence_for_macro(
         )
 
     if not reasons:
-        reasons.append("No macro adjustments applied -- conditions within normal range.")
+        reasons.append("No macro adjustments applied.")
 
     return round(adj, 4), reasons
