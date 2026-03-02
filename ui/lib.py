@@ -788,30 +788,99 @@ def inject_ws_theme():
         .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }}
         .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
 
-        /* View Details expander — structured transparency */
-        .vd-expander {{ font-size: 0.8rem; line-height: 1.5; }}
-        .vd-section {{ margin-bottom: 1rem; }}
-        .vd-section-title {{ font-size: 0.9rem; font-weight: 600; color: #0f172a; margin-bottom: 0.2rem; }}
-        .vd-line {{ margin: 0.15rem 0; }}
-        .vd-trigger-list {{ margin: 0.2rem 0 0.4rem 1.2rem; padding: 0; }}
-        .vd-confidence-bar {{ display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }}
-        .vd-bar-inline {{ font-family: monospace; letter-spacing: 1px; color: #0f172a; }}
-        .vd-band {{ font-weight: 600; color: #64748b; }}
-        .vd-bar-title {{ font-size: 0.75rem; color: #64748b; margin-bottom: 0.2rem; }}
-        .vd-bar-row {{ display: flex; align-items: center; gap: 0.5rem; margin: 0.15rem 0; font-size: 0.78rem; }}
-        .vd-bar-label {{ flex: 1; min-width: 140px; }}
-        .vd-bar {{ font-family: monospace; letter-spacing: 1px; width: 100px; color: #0f172a; }}
-        .vd-bar-val {{ font-weight: 600; color: #64748b; min-width: 36px; }}
-        .vd-bar-raw {{ color: #94a3b8; font-size: 0.72rem; }}
-        .vd-impact-row {{ margin: 0.2rem 0; }}
-        .vd-impact-row strong {{ font-size: 0.9rem; color: #0f172a; }}
-        .vd-macro-box {{ background: #f8fafc; border-radius: 4px; padding: 0.4rem 0.6rem; font-size: 0.78rem; color: #64748b; }}
-        .vd-macro-box .vd-muted {{ color: #94a3b8; font-style: italic; }}
-        .vd-audit .vd-decision-badge {{ font-weight: 600; margin: 0.2rem 0; }}
-        .vd-decision-approved {{ color: #16a34a; }}
-        .vd-decision-rejected {{ color: #dc2626; }}
-        .vd-meta-line {{ font-size: 0.75rem; color: #64748b; margin: 0.1rem 0; }}
-        .vd-expander .vd-muted {{ color: #94a3b8; font-size: 0.78rem; font-style: italic; }}
+        /* AI Decision Brief — scoped details expander styling */
+        .adb-card {{
+            background: #f8fafc;
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            border-radius: 6px;
+            padding: 0.55rem 0.7rem;
+            margin-bottom: 0.55rem;
+        }}
+        .adb-title {{
+            font-size: 0.86rem;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 0.25rem;
+        }}
+        .adb-line {{
+            font-size: 0.79rem;
+            color: #334155;
+            margin: 0.08rem 0;
+        }}
+        .adb-key {{ color: #64748b; font-weight: 500; }}
+        .adb-emph {{ color: #0f172a; font-weight: 600; }}
+        .adb-conf {{
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.1;
+            margin-bottom: 0.15rem;
+        }}
+        .adb-conf-row {{
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.76rem;
+            color: #64748b;
+        }}
+        .adb-bar-inline {{
+            font-family: monospace;
+            letter-spacing: 1px;
+            color: #0f172a;
+        }}
+        .adb-risk-high {{ color: #16a34a; font-weight: 600; }}
+        .adb-risk-medium {{ color: #d97706; font-weight: 600; }}
+        .adb-risk-low {{ color: #dc2626; font-weight: 600; }}
+        .adb-attr-header, .adb-attr-row {{
+            display: grid;
+            grid-template-columns: 1.55fr 1.45fr 0.5fr 0.65fr;
+            gap: 0.35rem;
+            align-items: center;
+        }}
+        .adb-attr-header {{
+            font-size: 0.68rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.2rem;
+        }}
+        .adb-attr-row {{
+            font-size: 0.76rem;
+            margin: 0.12rem 0;
+        }}
+        .adb-attr-driver {{ color: #0f172a; }}
+        .adb-track {{
+            background: #e2e8f0;
+            border-radius: 999px;
+            height: 8px;
+            position: relative;
+            overflow: hidden;
+        }}
+        .adb-fill {{
+            background: #334155;
+            height: 100%;
+            border-radius: 999px;
+        }}
+        .adb-attr-val {{ color: #334155; font-weight: 600; text-align: right; }}
+        .adb-attr-raw {{ color: #94a3b8; font-size: 0.72rem; text-align: right; }}
+        .adb-impact-amount {{
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0.12rem 0 0.22rem;
+        }}
+        .adb-status {{
+            display: inline-block;
+            padding: 0.14rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }}
+        .adb-status-approved {{ background: #dcfce7; color: #166534; }}
+        .adb-status-rejected {{ background: #fee2e2; color: #991b1b; }}
+        .adb-status-pending {{ background: #fef3c7; color: #92400e; }}
+        .adb-muted {{ color: #94a3b8; font-size: 0.74rem; }}
         
         /* Action Stack: left border + background on the row (stHorizontalBlock), not on children */
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk),
@@ -1210,118 +1279,174 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
     audit = trace.get("audit_log", [])
     signal = hypothesis.get("signal", "")
     signal_label = SIGNAL_LABELS.get(signal, signal.replace("_", " ").title())
-    conf = hypothesis.get("confidence", 0)
+    conf = float(hypothesis.get("confidence", 0.0))
     band_name, _ = confidence_band(conf)
-    tier = gov.get("tier", "green")
+    tier = (gov.get("tier", "green") or "green").lower()
+    tier_label = tier.title()
+    persona_label = TIER_LABELS.get(hypothesis.get("persona_tier", ""), hypothesis.get("persona_tier", "—"))
+    pathway_label = (hypothesis.get("distance_to_upgrade") or {}).get("cohort_label", "—")
     compliance = get_compliance_info()
     macro = st.session_state.get("macro") or get_default_macro()
     boc = getattr(macro, "boc_prime_rate", 4.25)
     vix = getattr(macro, "vix", 18)
+    override_pct = compliance.get("override_rate_30d", 10.0)
 
-    # --- Top Drivers (bar chart) ---
-    top_features = sorted(audit, key=lambda x: float(x.get("importance", 0)), reverse=True)[:5]
-    max_imp = max((float(a.get("importance", 0)) for a in top_features), default=0.01) or 0.01
-    bar_html = ""
-    for a in top_features:
-        fkey = a.get("feature", "")
-        imp = float(a.get("importance", 0))
-        val = a.get("value", 0)
-        label = _feature_label(fkey)
-        pct = min(10, int(10 * imp / max_imp)) if max_imp else 0
-        bar = "▓" * pct + "░" * (10 - pct)
-        val_str = _format_feature_value(fkey, val)
-        bar_html += f'<div class="vd-bar-row"><span class="vd-bar-label">{label}</span><span class="vd-bar">{bar}</span><span class="vd-bar-val">+{imp:.2f}</span><span class="vd-bar-raw">{val_str}</span></div>'
-    if not bar_html:
-        bar_html = '<div class="vd-muted">No feature attribution available.</div>'
+    risk_class = "adb-risk-high" if band_name == "High" else ("adb-risk-medium" if band_name == "Medium" else "adb-risk-low")
+    conf_blocks = "▓" * int(conf * 10) + "░" * (10 - int(conf * 10))
 
-    # --- Signal trigger conditions (from audit_log key metrics) ---
-    trigger_items = []
-    for a in audit:
-        fkey = a.get("feature", "")
-        val = a.get("value", 0)
-        if fkey == "illiquidity_ratio":
-            trigger_items.append(f"Illiquidity ratio: {val:.0%} (threshold: 20%)")
-        elif fkey == "credit_spend_vs_invest":
-            trigger_items.append(f"Credit spend {val:.1f}x transfer velocity")
-        elif fkey == "aua_current" and val > 0:
-            trigger_items.append(f"Current AUA: {format_currency(val)}")
-    if not trigger_items:
-        trigger_items.append(gov.get("reason", "Model confidence and product risk profile."))
+    # Pull common trigger features.
+    illiquidity_ratio = None
+    credit_vs_invest = None
+    current_aua = None
+    for entry in audit:
+        feat = entry.get("feature", "")
+        val = float(entry.get("value", 0) or 0)
+        if feat == "illiquidity_ratio":
+            illiquidity_ratio = val
+        elif feat == "credit_spend_vs_invest":
+            credit_vs_invest = val
+        elif feat == "aua_current":
+            current_aua = val
 
-    # --- Governance escalation ---
-    gov_reason = gov.get("reason", "—")
-    if tier == "red":
-        gov_short = "Illiquid allocation > 20% AUA safety limit" if "illiquid" in gov_reason.lower() or "20" in gov_reason else gov_reason[:80]
-    else:
-        gov_short = gov_reason[:80] + ("…" if len(gov_reason) > 80 else "")
+    # 1) Decision header block.
+    h_left, h_right = st.columns([3, 2])
+    with h_left:
+        st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+        st.markdown('<div class="adb-title">Decision Header</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Signal:</span> <span class="adb-emph">{signal_label}</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Tier:</span> <span class="adb-emph">{tier_label}</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Persona:</span> {persona_label}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Pathway:</span> {pathway_label}</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    with h_right:
+        st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+        st.markdown('<div class="adb-title">Confidence</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-conf">{conf:.2f}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="adb-conf-row"><span class="adb-bar-inline">{conf_blocks}</span> <span class="{risk_class}">{band_name}</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Projected impact ---
-    suggested = tp.get("suggested_amount")
-    aua_impact = format_currency(float(suggested)) if suggested is not None else "—"
-    runway = sb.get("months_of_runway", 0)
-    liq_improve = f"{runway:.1f} months runway" if runway else "—"
-    retention_delta = "+3.2%"  # Placeholder from experiment layer
+    # 2) Body in 2-column layout.
+    left, right = st.columns([3, 2])
+    with left:
+        # Signal Summary + Trigger + Escalation
+        st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+        st.markdown('<div class="adb-title">Signal Summary</div>', unsafe_allow_html=True)
+        trigger_items = []
+        if current_aua is not None and current_aua > 0:
+            trigger_items.append(f"Current AUA: {format_currency(current_aua)}")
+        if illiquidity_ratio is not None:
+            trigger_items.append(f"Illiquidity ratio: {illiquidity_ratio:.0%} (threshold: 20%)")
+        if credit_vs_invest is not None:
+            trigger_items.append(f"Credit spend {credit_vs_invest:.1f}x transfer velocity")
+        if not trigger_items:
+            trigger_items.append(gov.get("reason", "Model confidence and product risk profile."))
 
-    # --- Macro ---
-    macro_reasons = hypothesis.get("macro_reasons", [])
-    macro_adj = "No adjustment" if not macro_reasons else "; ".join(macro_reasons[:2])
-    macro_status = "Neutral" if not macro_reasons else "Adjusted"
+        st.markdown('<div class="adb-line"><span class="adb-key">Triggered because:</span></div>', unsafe_allow_html=True)
+        for item in trigger_items:
+            st.markdown(f'<div class="adb-line">• {item}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="adb-line" style="margin-top:0.25rem;"><span class="adb-key">Escalation:</span> {gov.get("reason", "—")}</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Override rate ---
-    override_pct = compliance.get("override_rate_30d", 10)
+        # Macro Context (compact, non-narrative).
+        macro_reasons = hypothesis.get("macro_reasons", [])
+        macro_status = "Neutral" if not macro_reasons else "Adjusted"
+        macro_adjustment = "None" if not macro_reasons else "; ".join(macro_reasons[:2])
+        st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+        st.markdown('<div class="adb-title">Macro Context</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Macro Overlay:</span> {macro_status}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">BoC:</span> {boc:.2f}%</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">VIX:</span> {vix:.0f}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Adjustment Applied:</span> {macro_adjustment}</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Decision metadata ---
-    decision_meta = ""
-    if existing_decision:
-        action = existing_decision.get("action", "").upper()
-        ts = existing_decision.get("timestamp", "")
+        # Optional counterfactual if data exists.
+        if illiquidity_ratio is not None:
+            over_policy = illiquidity_ratio - 0.20
+            if over_policy > 0:
+                st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+                st.markdown('<div class="adb-title">Counterfactual</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="adb-line"><span class="adb-key">If Not Approved:</span> Illiquidity remains {illiquidity_ratio:.0%} (+{over_policy:.0%} over policy)</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown("</div>", unsafe_allow_html=True)
+
+    with right:
+        # Model Explanation / attribution table.
+        st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+        st.markdown('<div class="adb-title">Model Explanation</div>', unsafe_allow_html=True)
+        top_features = sorted(audit, key=lambda x: float(x.get("importance", 0) or 0), reverse=True)[:5]
+        if top_features:
+            max_imp = max(float(a.get("importance", 0) or 0) for a in top_features) or 1.0
+            st.markdown(
+                '<div class="adb-attr-header"><div>Driver</div><div>Contribution</div><div>Value</div><div>Raw</div></div>',
+                unsafe_allow_html=True,
+            )
+            rows = []
+            for a in top_features:
+                feature_key = a.get("feature", "")
+                imp = float(a.get("importance", 0) or 0)
+                raw_val = float(a.get("value", 0) or 0)
+                width_pct = max(3, int((imp / max_imp) * 100))
+                rows.append(
+                    f'<div class="adb-attr-row">'
+                    f'<div class="adb-attr-driver">{_feature_label(feature_key)}</div>'
+                    f'<div class="adb-track"><div class="adb-fill" style="width:{width_pct}%;"></div></div>'
+                    f'<div class="adb-attr-val">+{imp:.2f}</div>'
+                    f'<div class="adb-attr-raw">{_format_feature_value(feature_key, raw_val)}</div>'
+                    f'</div>'
+                )
+            st.markdown("".join(rows), unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="adb-muted">No feature attribution available.</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Projected Impact (no placeholder dash).
+        suggested = tp.get("suggested_amount")
+        aua_impact = format_currency(float(suggested)) if suggested is not None else "Estimate unavailable"
+        runway = float(sb.get("months_of_runway", 0) or 0)
+        liq_improve = f"{runway:.1f} months runway" if runway > 0 else "Not available"
+        retention_delta = "+3.2%"
+        st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+        st.markdown('<div class="adb-title">Projected Impact (If Approved)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-impact-amount">{aua_impact}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Liquidity improvement:</span> {liq_improve}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Retention probability change:</span> {retention_delta}</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Decision Metadata.
+        action = (existing_decision or {}).get("action", "").lower()
+        ts = (existing_decision or {}).get("timestamp", "")
         if ts:
             try:
                 dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
                 ts_fmt = dt.strftime("%H:%M")
             except Exception:
-                ts_fmt = ts[:5] if len(ts) >= 5 else ts
+                ts_fmt = ts[:5]
         else:
             ts_fmt = "—"
-        badge_class = "vd-decision-approved" if action == "APPROVED" else "vd-decision-rejected"
-        decision_meta = f"""
-        <div class="vd-section vd-audit">
-            <div class="vd-section-title">Audit Metadata</div>
-            <div class="vd-decision-badge {badge_class}">✓ {action}</div>
-            <div class="vd-meta-line">Time: {ts_fmt}</div>
-            <div class="vd-meta-line">Confidence at decision: {conf:.2f}</div>
-            <div class="vd-meta-line">Override rate (similar cases): {override_pct}%</div>
-            <div class="vd-meta-line">Model: {compliance.get('model_version', '—')}</div>
-        </div>"""
+        status_text = action.upper() if action else "NOT DECIDED"
+        status_class = "adb-status-pending"
+        if action == "approved":
+            status_class = "adb-status-approved"
+        elif action == "rejected":
+            status_class = "adb-status-rejected"
+        st.markdown('<div class="adb-card">', unsafe_allow_html=True)
+        st.markdown('<div class="adb-title">Decision Record</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-status {status_class}">{status_text}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Time:</span> {ts_fmt}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Confidence at decision:</span> {conf:.2f}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Similar-case override rate:</span> {override_pct:.1f}%</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="adb-line"><span class="adb-key">Model version:</span> {compliance.get("model_version", "—")}</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # Render as one continuous HTML string (no blank lines) so Streamlit doesn't split
-    # and escape later blocks as markdown
-    audit_fallback = f'<div class="vd-section vd-audit"><div class="vd-section-title">Audit Metadata</div><div class="vd-meta-line">Override rate (similar cases): {override_pct}%</div><div class="vd-meta-line">Model: {compliance.get("model_version", "—")}</div></div>'
-    bar_blocks = "▓" * int(conf * 10) + "░" * (10 - int(conf * 10))
-    html = (
-        f'<div class="vd-expander">'
-        f'<div class="vd-section"><div class="vd-section-title">Signal Summary</div>'
-        f'<div class="vd-line"><strong>Signal:</strong> {signal_label}</div>'
-        f'<div class="vd-line"><strong>Triggered because:</strong></div>'
-        f'<ul class="vd-trigger-list">{"".join(f"<li>{t}</li>" for t in trigger_items)}</ul>'
-        f'<div class="vd-line"><strong>Escalated to {tier.title()} because:</strong> {gov_short}</div></div>'
-        f'<div class="vd-section"><div class="vd-section-title">Model Explanation</div>'
-        f'<div class="vd-confidence-bar"><span>Confidence: {conf:.2f}</span>'
-        f'<span class="vd-bar-inline">{bar_blocks}</span><span class="vd-band">{band_name}</span></div>'
-        f'<div class="vd-bar-title">Top Drivers (Local Attribution)</div>{bar_html}</div>'
-        f'<div class="vd-section"><div class="vd-section-title">Projected Impact (if approved)</div>'
-        f'<div class="vd-impact-row"><span>AUA impact:</span><strong>{aua_impact}</strong></div>'
-        f'<div class="vd-impact-row"><span>Liquidity:</span>{liq_improve}</div>'
-        f'<div class="vd-impact-row"><span>Retention probability:</span>{retention_delta}</div></div>'
-        f'<div class="vd-section vd-macro"><div class="vd-section-title">Macro Context</div>'
-        f'<div class="vd-macro-box"><span>Macro: {macro_status}</span>'
-        f'<span>BoC {boc:.2f}% · VIX {vix:.0f}</span><span class="vd-muted">{macro_adj}</span></div></div>'
-        f'{decision_meta if decision_meta else audit_fallback}'
-        f'</div>'
-    )
-    st.markdown(html, unsafe_allow_html=True)
-
-    # Optional: raw feature list (collapsible technical layer)
+    # Optional technical layer.
     if audit and len(audit) > 5:
         with st.expander("View raw model features", expanded=False):
             raw_list = ", ".join(f"{a.get('feature', '')} ({float(a.get('importance', 0)):.2f})" for a in audit[:8])
