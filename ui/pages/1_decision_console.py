@@ -133,39 +133,48 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
             st.caption(why)
 
         with col_right:
-            if is_locked:
-                action = existing.get("action", "").upper()
-                st.success(f"✓ {action}")
+            # Green cases: no Approve/Reject buttons (auto-approve candidate); show status only if already decided
+            if tier == "green":
+                if is_locked:
+                    action = existing.get("action", "").upper()
+                    st.success(f"✓ {action}")
+                else:
+                    st.caption("Auto-approve candidate")
             else:
-                b_rej, b_app = st.columns(2)
-                with b_rej:
-                    if st.button("Reject", key=f"rej_{card_key}", use_container_width=True):
-                        st.session_state.decisions[user_id] = {
-                            "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                            "confidence": hypothesis["confidence"],
-                        }
-                        record_feedback(
-                            user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                            tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
-                            macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
-                        )
-                        show_micro_feedback_toast("Rejected")
-                        st.rerun()
-                with b_app:
-                    if st.button("Approve", key=f"app_{card_key}", type="primary", use_container_width=True):
-                        st.session_state.decisions[user_id] = {
-                            "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                            "confidence": hypothesis["confidence"],
-                        }
-                        record_feedback(
-                            user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                            tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "approved",
-                            macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
-                        )
-                        show_micro_feedback_toast("Approved")
-                        st.rerun()
+                # Red and Amber: show buttons or locked status
+                if is_locked:
+                    action = existing.get("action", "").upper()
+                    st.success(f"✓ {action}")
+                else:
+                    b_rej, b_app = st.columns(2)
+                    with b_rej:
+                        if st.button("Reject", key=f"rej_{card_key}", use_container_width=True):
+                            st.session_state.decisions[user_id] = {
+                                "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                                "confidence": hypothesis["confidence"],
+                            }
+                            record_feedback(
+                                user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                                tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
+                                macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                            )
+                            show_micro_feedback_toast("Rejected")
+                            st.rerun()
+                    with b_app:
+                        if st.button("Approve", key=f"app_{card_key}", type="primary", use_container_width=True):
+                            st.session_state.decisions[user_id] = {
+                                "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                                "confidence": hypothesis["confidence"],
+                            }
+                            record_feedback(
+                                user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                                tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "approved",
+                                macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                            )
+                            show_micro_feedback_toast("Approved")
+                            st.rerun()
 
         # Inline expand: View Details — structured transparency for decision clarity
         with st.expander("View Details ▾", expanded=False):

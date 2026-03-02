@@ -768,14 +768,16 @@ def inject_ws_theme():
         .ws-audit-kpi-label {{ font-size: 0.7rem; color: var(--ws-muted); text-transform: uppercase; }}
         .ws-audit-kpi-value {{ font-weight: 600; font-size: 0.9rem; }}
         
-        /* Case Queue — operational cards (Decision Console) via st.container */
+        /* Case Queue — grey container wraps each case card (Decision Console) */
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red),
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber),
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{
+            background: #f2f2f2 !important;
             border-left-width: 4px !important;
             border-radius: var(--ws-radius) !important;
             margin-bottom: 0.5rem !important;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+            padding: 0.5rem 0.75rem !important;
         }}
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) {{ border-left-color: #dc2626 !important; }}
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) {{ border-left-color: #d97706 !important; }}
@@ -804,10 +806,44 @@ def inject_ws_theme():
         .adb-conf-bar-fill.adb-conf-bar-mid {{ background: #78716c; }}
         .adb-conf-bar-fill.adb-conf-bar-low {{ background: #b91c1c; }}
         .adb-risk-label {{ font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.1rem; }}
+        .adb-tier-descriptor {{ font-size: 10px; font-weight: 600; color: #555; margin-top: 0.15rem; text-transform: uppercase; letter-spacing: 0.03em; }}
+        .adb-conf-gauge {{ position: relative; width: 100%; max-width: 140px; margin-top: 0.35rem; }}
+        .adb-conf-gauge-track {{ height: 8px; background: #e5e7eb; border-radius: 4px; overflow: visible; position: relative; }}
+        .adb-conf-gauge-fill {{ height: 100%; border-radius: 4px; transition: width 0.2s; }}
+        .adb-conf-gauge-fill.high {{ background: #0F5132; }}
+        .adb-conf-gauge-fill.mid {{ background: #b45309; }}
+        .adb-conf-gauge-fill.low {{ background: #b91c1c; }}
+        .adb-conf-gauge-threshold {{ position: absolute; top: -2px; bottom: -2px; width: 2px; background: #374151; border-radius: 1px; z-index: 1; }}
+        .adb-conf-gauge-labels {{ display: flex; justify-content: space-between; font-size: 9px; color: #6b7280; margin-top: 0.2rem; }}
+        .adb-conf-gauge-labels .th {{ font-weight: 700; color: #374151; }}
         .adb-band-high {{ color: #0F5132; font-weight: 600; }}
         .adb-band-mid {{ color: #666; }}
         .adb-band-low {{ color: #b91c1c; font-weight: 600; }}
         .adb-macro-reason {{ font-size: 13px; color: #666; margin-bottom: 0.4rem; padding-bottom: 0.35rem; border-bottom: 1px solid #ddd; }}
+        /* View Details expander: narrative pill row — Signal · Tier · Confidence · Persona · Pathway · Why flagged */
+        .adb-header-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.5rem; padding: 0.4rem 0.6rem; margin-bottom: 0.4rem; background: #fafafa; border-radius: 6px; border: 1px solid #e8e8e8; line-height: 1.35; font-size: 12px; }}
+        .adb-header-sep {{ color: #bbb; font-weight: 400; padding: 0 0.35rem; user-select: none; }}
+        .adb-header-label {{ font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin-right: 0.25rem; }}
+        .adb-header-item {{ display: inline-flex; align-items: center; }}
+        .adb-chip {{ display: inline-block; padding: 0.12rem 0.4rem; border-radius: 4px; font-size: 11px; font-weight: 500; background: #fff; border: 1px solid #e0e0e0; color: #333; max-width: 10em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+        .adb-conf-pill {{ display: inline-flex; align-items: center; padding: 0.15rem 0.45rem; border-radius: 999px; font-size: 12px; font-weight: 700; background: #fff; border: 1px solid #e0e0e0; }}
+        .adb-tier-block {{ display: inline-flex; flex-direction: column; align-items: center; gap: 0.12rem; padding: 0.28rem 0.55rem; border-radius: 6px; font-size: 13px; font-weight: 800; min-width: 4.5rem; letter-spacing: 0.02em; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }}
+        .adb-tier-block.red {{ background: #fef2f2; border: 1.5px solid #f87171; color: #b91c1c; }}
+        .adb-tier-block.amber {{ background: #fffbeb; border: 1.5px solid #fbbf24; color: #b45309; }}
+        .adb-tier-block.green {{ background: #f0fdf4; border: 1.5px solid #4ade80; color: #15803d; }}
+        .adb-tier-block .adb-tier-icon {{ font-size: 16px; line-height: 1; margin-right: 0.25rem; }}
+        .adb-tier-action {{ display: inline-flex; align-items: center; gap: 0.2rem; font-size: 9px; font-weight: 700; text-align: center; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.15rem 0.35rem; border-radius: 4px; }}
+        .adb-tier-action.red {{ background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }}
+        .adb-tier-action.amber {{ background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }}
+        .adb-tier-action.green {{ background: #d1fae5; color: #047857; border: 1px solid #6ee7b7; }}
+        .adb-tier-action-icon {{ font-size: 10px; line-height: 1; }}
+        .adb-why-flagged {{ font-size: 11px; color: #444; flex: 1; min-width: 100px; line-height: 1.35; }}
+        .adb-why-flagged .adb-header-label {{ margin-right: 0.2rem; }}
+        .adb-view-card {{ background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px; padding: 0.5rem 0.65rem; margin-bottom: 0.5rem; }}
+        .adb-view-card .adb-title {{ margin-bottom: 0.25rem; }}
+        .adb-summary-headline {{ font-size: 13px; font-weight: 700; color: #111; margin-bottom: 0.35rem; line-height: 1.4; }}
+        .adb-summary-line {{ font-size: 12px; color: #444; line-height: 1.45; }}
+        .adb-view-sep {{ height: 1px; background: #e0e0e0; margin: 0.4rem 0; }}
         .adb-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.3rem 0; border-bottom: 1px solid #ddd; margin-bottom: 0.35rem; background: #fff; line-height: 1.45; }}
         .adb-section {{ background: #fff; padding: 0.28rem 0; margin-bottom: 0.25rem; border-bottom: 1px solid #ddd; line-height: 1.42; }}
         .adb-section:last-of-type {{ border-bottom: none; }}
@@ -822,19 +858,48 @@ def inject_ws_theme():
         .adb-badge-neutral {{ background: #f5f5f5; color: #444; border: 1px solid #e0e0e0; }}
         .adb-macro-grid {{ display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.75rem; font-size: 13px; color: #444; }}
         .adb-macro-grid .k {{ color: #666; }}
+        .adb-macro-chip {{ display: inline-block; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 12px; font-weight: 600; background: #f0f4f8; border: 1px solid #cbd5e1; color: #334155; }}
+        .adb-impact-tag {{ display: inline-block; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.35rem; }}
+        .adb-impact-tag.high {{ background: #ecfdf5; color: #0F5132; border: 1px solid #a7f3d0; }}
+        .adb-impact-tag.medium {{ background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }}
+        .adb-impact-tag.low {{ background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }}
+        .adb-impact-metric {{ font-size: 13px; margin: 0.2rem 0; }}
+        .adb-impact-metric .k {{ color: #64748b; font-weight: 500; }}
+        .adb-progress-wrap {{ margin: 0.4rem 0; }}
+        .adb-progress-label {{ font-size: 11px; color: #64748b; margin-bottom: 0.15rem; display: flex; justify-content: space-between; }}
+        .adb-progress-bar {{ height: 8px; border-radius: 4px; overflow: hidden; background: #e2e8f0; position: relative; }}
+        .adb-progress-bar .fill {{ height: 100%; border-radius: 4px; transition: width 0.2s; }}
+        .adb-progress-bar .fill.safe {{ background: #22c55e; }}
+        .adb-progress-bar .fill.caution {{ background: #eab308; }}
+        .adb-progress-bar .fill.unsafe {{ background: #ef4444; }}
+        .adb-progress-bar.threshold {{ background: linear-gradient(to right, #22c55e 0%, #22c55e 20%, #e2e8f0 20%, #e2e8f0 100%); }}
+        .adb-progress-bar.threshold .fill {{ background: #ef4444; }}
+        .adb-trigger-grid {{ display: grid; grid-template-columns: 6.5em 1fr; gap: 0.2rem 0.6rem; font-size: 12px; color: #333; align-items: baseline; }}
+        .adb-trigger-grid .adb-trigger-k {{ color: #555; font-weight: 500; }}
+        .adb-trigger-na {{ color: #999; font-style: italic; cursor: help; }}
+        .adb-drivers-legend {{ font-size: 11px; color: #666; margin-bottom: 0.35rem; font-style: italic; }}
+        .adb-attr-row-top {{ background: #f0f9ff; border-left: 3px solid #0ea5e9; padding-left: 0.35rem; }}
+        .adb-attr-rank {{ font-weight: 700; color: #0ea5e9; margin-right: 0.25rem; font-size: 12px; }}
+        .adb-attr-row .adb-attr-driver {{ color: #333; font-weight: 400; }}
+        .adb-attr-impact {{ font-weight: 600; color: #0F5132; font-size: 13px; }}
+        .adb-attr-impact.neg {{ color: #b91c1c; }}
         .adb-impact-block {{ border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.4rem 0.5rem; background: #fafafa; }}
         .adb-decision-status-box {{ border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.35rem 0.5rem; margin-bottom: 0.3rem; background: #fafafa; }}
         .adb-attr-header, .adb-attr-row {{
             display: grid;
-            grid-template-columns: 1.55fr 1.45fr 0.5fr 0.65fr;
+            grid-template-columns: 1.4fr 1.6fr 0.4fr;
             gap: 0.28rem;
             align-items: center;
         }}
         .adb-attr-header {{ font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; font-weight: 600; }}
         .adb-attr-row {{ font-size: 14px; margin: 0.12rem 0; line-height: 1.45; }}
-        .adb-attr-driver {{ color: #1a1a1a; font-weight: 500; }}
         .adb-track {{ background: #e0e0e0; border-radius: 2px; height: 6px; overflow: hidden; }}
-        .adb-fill {{ background: #999; height: 100%; border-radius: 2px; }}
+        .adb-fill {{ background: #94a3b8; height: 100%; border-radius: 2px; }}
+        .adb-fill-main {{ background: #0ea5e9; }}
+        .adb-impact-tag-wrap {{ display: inline-flex; align-items: center; gap: 0.2rem; margin-bottom: 0.35rem; }}
+        .adb-impact-info {{ font-size: 11px; color: #64748b; cursor: help; opacity: 0.85; }}
+        .adb-impact-subhead {{ font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0.4rem 0 0.2rem 0; }}
+        .adb-impact-subhead:first-of-type {{ margin-top: 0; }}
         .adb-attr-val {{ font-weight: 700; text-align: right; color: #111; font-size: 14px; }}
         .adb-attr-raw {{ color: #555; font-size: 13px; text-align: right; }}
         .adb-impact-amount {{ font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 0.12rem 0 0.2rem; line-height: 1.3; }}
@@ -847,6 +912,10 @@ def inject_ws_theme():
         .adb-meta {{ font-size: 13px; color: #666; margin: 0.06rem 0; line-height: 1.45; }}
         .adb-divider {{ height: 1px; background: #ddd; margin: 0.35rem 0; }}
         .adb-muted {{ color: #666; font-size: 14px; }}
+        /* Decision footer inside expander: sticky bar + override badge */
+        .adb-decision-footer {{ margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; padding: 0.6rem 0.75rem; }}
+        .adb-decision-footer .adb-override-badge {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 12px; font-weight: 600; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; margin-bottom: 0.4rem; }}
+        .adb-raw-drawer {{ margin-top: 0.5rem; }}
         
         /* Action Stack: left border + background on the row (stHorizontalBlock), not on children */
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk),
@@ -1281,42 +1350,7 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
     macro_reasons = hypothesis.get("macro_reasons", [])
     macro_reason_line = "; ".join(macro_reasons[:2]) if macro_reasons else "No macro adjustments applied — conditions within normal range."
 
-    # 0) Macro Reason — top of expander (single line)
-    macro_reason_html = (
-        f'<div class="adb-macro-reason">'
-        f'<div class="adb-key" style="font-size:12px;margin-bottom:0.15rem;">Macro Reason:</div>'
-        f'<div class="adb-line" style="margin:0;">• {macro_reason_line}</div>'
-        f'</div>'
-    )
-    st.markdown(macro_reason_html, unsafe_allow_html=True)
-
-    # 1) Decision Header & Confidence — 2-column: left = identity, right = Confidence title + value + bar + band label
-    col1, col2 = st.columns([3, 2])
-    with col1:
-        header_left = (
-            f'<div class="adb-header-block">'
-            f'<div class="adb-title">Decision Header</div>'
-            f'<div class="adb-header-left">'
-            f'<div class="adb-line"><span class="adb-key">Signal:</span> <span class="adb-emph">{signal_label}</span></div>'
-            f'<div class="adb-line"><span class="adb-key">Tier:</span> <span class="adb-badge {tier_badge_class}">{tier_label}</span></div>'
-            f'<div class="adb-line"><span class="adb-key">Persona:</span> {persona_label}</div>'
-            f'<div class="adb-line"><span class="adb-key">Pathway:</span> {pathway_label}</div>'
-            f'</div></div>'
-        )
-        st.markdown(header_left, unsafe_allow_html=True)
-    with col2:
-        header_right = (
-            f'<div class="adb-header-block">'
-            f'<div class="adb-title">Confidence</div>'
-            f'<div class="adb-header-right">'
-            f'<div class="{conf_value_class}">{conf:.2f}</div>'
-            f'<div class="adb-conf-bar-wrap"><div class="{conf_bar_class}" style="width:{conf_bar_pct}%;"></div></div>'
-            f'<div class="adb-risk-label {band_label_class}">{band_name}</div>'
-            f'</div></div>'
-        )
-        st.markdown(header_right, unsafe_allow_html=True)
-
-    # 2) Body — 2-column: left = Signal Summary, Triggers, Escalation, Macro, Counterfactual; right = Attribution, Impact, Decision Record
+    # One-line "Why flagged" and tier action for compact header
     trigger_items = []
     if current_aua is not None and current_aua > 0:
         trigger_items.append(f"Current AUA: {format_currency(current_aua)}")
@@ -1326,49 +1360,129 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
         trigger_items.append(f"Credit spend {credit_vs_invest:.1f}x transfer velocity")
     if not trigger_items:
         trigger_items.append(gov.get("reason", "Model confidence and product risk profile."))
-    trigger_lines = "".join(f'<div class="adb-line">• {item}</div>' for item in trigger_items)
     liquid_cash = sb.get("liquid_cash")
     burn_rate = sb.get("monthly_burn_rate")
     runway = float(sb.get("months_of_runway", 0) or 0)
-    liquidity_lines = ""
+    liquidity_meta = ""
     if liquid_cash is not None or burn_rate is not None or runway:
-        liquidity_lines = '<div class="adb-divider"></div><div class="adb-meta">'
+        liquidity_meta = '<div class="adb-view-sep"></div><div class="adb-meta">'
         if liquid_cash is not None:
-            liquidity_lines += f'Liquid: {format_currency(float(liquid_cash))}'
+            liquidity_meta += f'Liquid: {format_currency(float(liquid_cash))}'
         if burn_rate is not None:
-            liquidity_lines += f' · Burn: {format_currency(float(burn_rate))}/mo'
+            liquidity_meta += f' · Burn: {format_currency(float(burn_rate))}/mo'
         if runway:
-            liquidity_lines += f' · Runway: {runway:.1f} mo'
-        liquidity_lines += "</div>"
-    signal_summary_html = (
-        f'<div class="adb-section">'
-        f'<div class="adb-title">Signal Summary</div>'
-        f'<div class="adb-line"><span class="adb-key">Triggered because:</span></div>{trigger_lines}'
-        f'<div class="adb-line"><span class="adb-key">Escalation:</span> {gov.get("reason", "—")}</div>'
-        f'{liquidity_lines}</div>'
-    )
+            liquidity_meta += f' · Runway: {runway:.1f} mo'
+        liquidity_meta += "</div>"
     macro_status = "Neutral" if not macro_reasons else "Adjusted"
     macro_adjustment = "No macro adjustments applied—conditions within normal range." if not macro_reasons else "; ".join(macro_reasons[:2])
-    macro_html = (
-        f'<div class="adb-section">'
-        f'<div class="adb-title">Macro Context</div>'
-        f'<div class="adb-macro-grid">'
-        f'<span class="k">Macro Overlay:</span><span>{macro_status}</span>'
-        f'<span class="k">BoC:</span><span>{boc:.2f}%</span>'
-        f'<span class="k">VIX:</span><span>{vix:.0f}</span>'
-        f'<span class="k">Adjustment Applied:</span><span>{macro_adjustment}</span>'
-        f'</div></div>'
+
+    # Structured Trigger conditions (tight grid; grey "—" with tooltip when not a driver)
+    _na = '<span class="adb-trigger-na" title="Not a driver in this case">—</span>'
+    trigger_aua = format_currency(current_aua) if (current_aua is not None and current_aua > 0) else None
+    trigger_illiq = f"{illiquidity_ratio:.0%} (threshold 20%)" if illiquidity_ratio is not None else None
+    trigger_credit = f"{credit_vs_invest:.1f}x" if credit_vs_invest is not None else None
+    trigger_runway = f"{runway:.1f} mo" if runway and runway > 0 else None
+    _v = lambda x: x if x is not None else _na
+    trigger_grid_html = (
+        f'<div class="adb-trigger-grid">'
+        f'<span class="adb-trigger-k">Current AUA</span><span>{_v(trigger_aua)}</span>'
+        f'<span class="adb-trigger-k">Illiquidity</span><span>{_v(trigger_illiq)}</span>'
+        f'<span class="adb-trigger-k">Credit vs invest</span><span>{_v(trigger_credit)}</span>'
+        f'<span class="adb-trigger-k">Runway</span><span>{_v(trigger_runway)}</span>'
+        f'</div>'
     )
 
+    why_flagged = (trigger_items[0] if trigger_items else gov.get("reason", "—"))[:72]
+    if len((trigger_items[0] if trigger_items else gov.get("reason", ""))) > 72:
+        why_flagged += "…"
+    tier_action = {"red": "Manual review required", "amber": "Batch review recommended", "green": "Auto-approve candidate"}.get(tier, "Review")
+    tier_action_icon = {"red": "!", "amber": "▸", "green": "✓"}.get(tier, "•")
+    tier_action_class = f"adb-tier-action {tier}" if tier in ("red", "amber", "green") else "adb-tier-action"
+    # Concise chip labels (single line): shorten persona/pathway
+    persona_chip = persona_label.split(" (")[0] if " (" in persona_label else persona_label[:18]
+    if len(persona_label) > 18 and " (" not in persona_label:
+        persona_chip = persona_label[:15] + "…"
+    pathway_chip = pathway_label[:24] + "…" if len(pathway_label) > 24 else pathway_label
+
+    # Tight header row: Signal chip | Tier (dominant, color + icon + action) | Confidence pill | Persona | Pathway | Why flagged
+    tier_block_class = f"adb-tier-block {tier}" if tier in ("red", "amber", "green") else "adb-tier-block green"
+    tier_icon = "●"
+    signal_esc = signal_label.replace('"', "&quot;")
+    persona_esc = persona_label.replace('"', "&quot;")
+    pathway_esc = pathway_label.replace('"', "&quot;")
+    sep = '<span class="adb-header-sep">·</span>'
+    header_html = (
+        f'<div class="adb-header-row">'
+        f'<span class="adb-header-item"><span class="adb-header-label">Signal</span><span class="adb-chip" title="{signal_esc}">{signal_label}</span></span>'
+        f'{sep}'
+        f'<span class="adb-header-item"><span class="adb-header-label">Tier</span><span class="{tier_block_class}"><span><span class="adb-tier-icon">{tier_icon}</span>{tier_label}</span><span class="{tier_action_class}"><span class="adb-tier-action-icon">{tier_action_icon}</span>{tier_action}</span></span></span>'
+        f'{sep}'
+        f'<span class="adb-header-item"><span class="adb-header-label">Conf</span><span class="adb-conf-pill {conf_value_class}">{conf:.2f}</span></span>'
+        f'{sep}'
+        f'<span class="adb-header-item"><span class="adb-header-label">Persona</span><span class="adb-chip" title="{persona_esc}">{persona_chip}</span></span>'
+        f'{sep}'
+        f'<span class="adb-header-item"><span class="adb-header-label">Pathway</span><span class="adb-chip" title="{pathway_esc}">{pathway_chip}</span></span>'
+        f'{sep}'
+        f'<span class="adb-header-item adb-why-flagged"><span class="adb-header-label">Why flagged</span><span>{why_flagged}</span></span>'
+        f'</div>'
+    )
+    st.markdown(header_html, unsafe_allow_html=True)
+
+    # Scannable 2-column layout: left = narrative (Summary, Macro, Counterfactual), right = metrics (Risk & Tier, Drivers, Impact, Decision History)
     left, right = st.columns([3, 2])
+
     with left:
-        st.markdown(signal_summary_html, unsafe_allow_html=True)
+        # Trigger conditions — structured labeled rows
+        trigger_card_html = (
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Trigger conditions</div>'
+            f'{trigger_grid_html}'
+            f'</div>'
+        )
+        st.markdown(trigger_card_html, unsafe_allow_html=True)
+
+        # Summary — bold status headline, then one concise line (escalation + liquidity)
+        status_phrase = {"red": "case — manual review required", "amber": "upgrade candidate for cohort review", "green": "auto-approve candidate"}.get(tier, "review")
+        status_headline = f"Status: {band_name}-confidence {status_phrase}."
+        escalation_line = gov.get("reason", "—")
+        liquidity_parts = []
+        if liquid_cash is not None:
+            liquidity_parts.append(f"Liquid: {format_currency(float(liquid_cash))}")
+        if burn_rate is not None:
+            liquidity_parts.append(f"Burn: {format_currency(float(burn_rate))}/mo")
+        if runway and runway > 0:
+            liquidity_parts.append(f"Runway: {runway:.1f} mo")
+        concise_line = escalation_line
+        if liquidity_parts:
+            concise_line += " · " + " · ".join(liquidity_parts)
+        summary_html = (
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Summary</div>'
+            f'<div class="adb-summary-headline">{status_headline}</div>'
+            f'<div class="adb-summary-line">{concise_line}</div>'
+            f'</div>'
+        )
+        st.markdown(summary_html, unsafe_allow_html=True)
+
+        # Macro Context — compact chip + tooltip for details
+        macro_chip_text = f"Macro overlay: {macro_status}" + (" (normal range)" if macro_status == "Neutral" else "")
+        macro_tooltip = f"BoC: {boc:.2f}% · VIX: {vix:.0f} · {macro_adjustment}"
+        if macro_reason_line and macro_reason_line != "No macro adjustments applied — conditions within normal range.":
+            macro_tooltip = macro_reason_line + " | " + macro_tooltip
+        macro_tooltip_esc = macro_tooltip.replace('"', "&quot;")
+        macro_html = (
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Macro Context</div>'
+            f'<span class="adb-macro-chip" title="{macro_tooltip_esc}">{macro_chip_text}</span>'
+            f'</div>'
+        )
         st.markdown(macro_html, unsafe_allow_html=True)
+
         if illiquidity_ratio is not None:
             over_policy = illiquidity_ratio - 0.20
             if over_policy > 0:
                 counterfactual_html = (
-                    f'<div class="adb-section">'
+                    f'<div class="adb-view-card">'
                     f'<div class="adb-title">Counterfactual</div>'
                     f'<div class="adb-line"><span class="adb-key">If Not Approved:</span> Illiquidity remains {illiquidity_ratio:.0%} (+{over_policy:.0%} over policy)</div>'
                     f'</div>'
@@ -1376,52 +1490,124 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
                 st.markdown(counterfactual_html, unsafe_allow_html=True)
 
     with right:
-        top_features = sorted(audit, key=lambda x: float(x.get("importance", 0) or 0), reverse=True)[:5]
-        if top_features:
+        # Risk & Tier — tier badge + action descriptor, confidence gauge with threshold
+        tier_descriptor = {"red": "Manual review", "amber": "Human batch review", "green": "Auto-approve"}.get(tier, "Review")
+        conf_gauge_fill_class = "high" if conf >= 0.75 else ("mid" if conf >= 0.60 else "low")
+        conf_threshold_pct = 75  # auto-approve threshold at 0.75
+        risk_tier_html = (
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Risk &amp; Tier</div>'
+            f'<div class="adb-line"><span class="adb-badge {tier_badge_class}">{tier_label}</span></div>'
+            f'<div class="adb-tier-descriptor">{tier_descriptor}</div>'
+            f'<div class="{conf_value_class}" style="margin:0.35rem 0 0.1rem 0;">{conf:.2f}</div>'
+            f'<div class="adb-conf-gauge">'
+            f'<div class="adb-conf-gauge-track">'
+            f'<div class="adb-conf-gauge-fill {conf_gauge_fill_class}" style="width:{conf_bar_pct}%;"></div>'
+            f'<span class="adb-conf-gauge-threshold" style="left:{conf_threshold_pct}%;"></span>'
+            f'</div>'
+            f'<div class="adb-conf-gauge-labels"><span>0</span><span class="th">≥0.75 auto</span><span>1</span></div>'
+            f'</div>'
+            f'<div class="adb-risk-label {band_label_class}" style="margin-top:0.2rem;">{band_name}</div>'
+            f'</div>'
+        )
+        st.markdown(risk_tier_html, unsafe_allow_html=True)
+
+        # Drivers — feature attribution: legend, rank + bar + +/- in static; exact values on hover; top 1–2 highlighted
+        if top_features := sorted(audit, key=lambda x: float(x.get("importance", 0) or 0), reverse=True)[:5]:
             max_imp = max(float(a.get("importance", 0) or 0) for a in top_features) or 1.0
             attr_rows = []
-            for a in top_features:
+            for idx, a in enumerate(top_features):
                 feature_key = a.get("feature", "")
                 imp = float(a.get("importance", 0) or 0)
                 raw_val = float(a.get("value", 0) or 0)
                 width_pct = max(3, int((imp / max_imp) * 100))
+                rank = idx + 1
+                impact_sign = "+" if imp >= 0 else "−"
+                impact_class = "adb-attr-impact" if imp >= 0 else "adb-attr-impact neg"
+                raw_fmt = _format_feature_value(feature_key, raw_val).replace('"', "&quot;")
+                title_vals = f"Contribution: {imp:+.2f} · Raw: {raw_fmt}"
+                row_class = "adb-attr-row" + (" adb-attr-row-top" if rank <= 2 else "")
+                fill_class = "adb-fill adb-fill-main" if rank <= 2 else "adb-fill"
                 attr_rows.append(
-                    f'<div class="adb-attr-row">'
-                    f'<div class="adb-attr-driver">{_feature_label(feature_key)}</div>'
-                    f'<div class="adb-track"><div class="adb-fill" style="width:{width_pct}%;"></div></div>'
-                    f'<div class="adb-attr-val">+{imp:.2f}</div>'
-                    f'<div class="adb-attr-raw">{_format_feature_value(feature_key, raw_val)}</div>'
+                    f'<div class="{row_class}" title="{title_vals}">'
+                    f'<div class="adb-attr-driver"><span class="adb-attr-rank">#{rank}</span>{_feature_label(feature_key)}</div>'
+                    f'<div class="adb-track"><div class="{fill_class}" style="width:{width_pct}%;"></div></div>'
+                    f'<div class="{impact_class}">{impact_sign}</div>'
                     f'</div>'
                 )
             attr_body = (
-                '<div class="adb-attr-header"><div>DRIVER</div><div>CONTRIBUTION</div><div>VALUE</div><div>RAW</div></div>'
+                '<div class="adb-drivers-legend">Top drivers increasing confidence</div>'
+                '<div class="adb-attr-header"><div>DRIVER</div><div>CONTRIBUTION</div><div>IMPACT</div></div>'
                 + "".join(attr_rows)
             )
         else:
             attr_body = '<div class="adb-muted">No feature attribution available.</div>'
-        model_expl_html = f'<div class="adb-section"><div class="adb-title">Model Explanation</div>{attr_body}</div>'
-        st.markdown(model_expl_html, unsafe_allow_html=True)
+        drivers_html = f'<div class="adb-view-card"><div class="adb-title">Drivers</div>{attr_body}</div>'
+        st.markdown(drivers_html, unsafe_allow_html=True)
 
+        # Projected Impact — labeled metrics with units + Impact: Low/Medium/High tag
         suggested = tp.get("suggested_amount")
         has_aua = suggested is not None
-        aua_impact = format_currency(float(suggested)) if has_aua else "Estimate unavailable"
-        liq_improve = f"{runway:.1f} months runway" if runway > 0 else "Not available"
+        suggested_f = float(suggested) if has_aua else 0
+        aua_display = format_currency(suggested_f) if has_aua else "—"
+        liq_display = f"{runway:.1f} mo" if runway > 0 else "—"
         retention_delta = "+3.2%"
-        if has_aua:
-            impact_value_html = f'<div class="adb-impact-amount adb-impact-positive">{aua_impact}</div>'
+        if has_aua and suggested_f >= 50000:
+            impact_level, impact_class = "High", "high"
+        elif has_aua and suggested_f >= 10000:
+            impact_level, impact_class = "Medium", "medium"
         else:
-            impact_value_html = f'<div class="adb-impact-amount" style="color:#333;font-size:15px;">{aua_impact}</div>'
+            impact_level, impact_class = "Low", "low"
+        impact_tag_html = f'<span class="adb-impact-tag {impact_class}">Impact: {impact_level}</span>'
         impact_html = (
-            f'<div class="adb-section">'
-            f'<div class="adb-impact-block">'
-            f'<div class="adb-title">Projected Impact (If Approved)</div>'
-            f'{impact_value_html}'
-            f'<div class="adb-meta">Liquidity improvement: {liq_improve}</div>'
-            f'<div class="adb-meta">Retention probability change: {retention_delta}</div>'
-            f'</div></div>'
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Projected Impact</div>'
+            f'{impact_tag_html}'
+            f'<div class="adb-impact-metric"><span class="k">AUA impact:</span> {aua_display}</div>'
+            f'<div class="adb-impact-metric"><span class="k">Runway:</span> {liq_display}</div>'
+            f'<div class="adb-impact-metric"><span class="k">Retention Δ:</span> {retention_delta}</div>'
+            f'</div>'
         )
         st.markdown(impact_html, unsafe_allow_html=True)
 
+        # Runway & risk thresholds — progress bars with safe/unsafe zones
+        runway_max = 24
+        runway_pct = min(100, int((runway / runway_max) * 100)) if runway and runway > 0 else 0
+        if runway and runway > 0:
+            if runway >= 12:
+                runway_zone = "safe"
+            elif runway >= 6:
+                runway_zone = "caution"
+            else:
+                runway_zone = "unsafe"
+        else:
+            runway_zone = "unsafe"
+        runway_bar_html = (
+            f'<div class="adb-progress-wrap">'
+            f'<div class="adb-progress-label"><span>Runway</span><span>{runway:.1f} mo</span></div>'
+            f'<div class="adb-progress-bar"><div class="fill {runway_zone}" style="width:{runway_pct}%;"></div></div>'
+            f'<div class="adb-progress-label" style="font-size:10px;margin-top:0.1rem;"><span>0</span><span>6 mo</span><span>12 mo</span><span>24 mo</span></div>'
+            f'</div>'
+        )
+        illiq_pct = min(100, int((illiquidity_ratio or 0) * 100))
+        illiq_unsafe = (illiquidity_ratio or 0) >= 0.20
+        illiq_zone = "unsafe" if illiq_unsafe else "safe"
+        illiq_bar_html = (
+            f'<div class="adb-progress-wrap">'
+            f'<div class="adb-progress-label"><span>Illiquidity</span><span>{illiq_pct}% (threshold 20%)</span></div>'
+            f'<div class="adb-progress-bar"><div class="fill {illiq_zone}" style="width:{illiq_pct}%;"></div></div>'
+            f'</div>'
+        )
+        bars_card_html = (
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Runway &amp; risk thresholds</div>'
+            f'{runway_bar_html}'
+            f'{illiq_bar_html}'
+            f'</div>'
+        )
+        st.markdown(bars_card_html, unsafe_allow_html=True)
+
+        # Decision History — metrics
         action = (existing_decision or {}).get("action", "").lower()
         ts = (existing_decision or {}).get("timestamp", "")
         if ts:
@@ -1439,24 +1625,40 @@ def render_view_details_expander(hypothesis: dict, existing_decision: dict = Non
         elif action == "rejected":
             status_class = "adb-status-rejected"
         record_html = (
-            f'<div class="adb-section">'
-            f'<div class="adb-title">Decision Record</div>'
+            f'<div class="adb-view-card">'
+            f'<div class="adb-title">Decision History</div>'
             f'<div class="adb-decision-status-box">'
             f'<div class="adb-status {status_class}">{status_text}</div>'
             f'</div>'
             f'<div class="adb-meta"><span class="adb-key">Time:</span> {ts_fmt}</div>'
             f'<div class="adb-meta"><span class="adb-key">Confidence at decision:</span> {conf:.2f}</div>'
-            f'<div class="adb-meta"><span class="adb-key">Similar-case override rate:</span> {override_pct:.1f}%</div>'
-            f'<div class="adb-meta"><span class="adb-key">Model version:</span> {compliance.get("model_version", "—")}</div>'
+            f'<div class="adb-meta"><span class="adb-key">Override rate:</span> {override_pct:.1f}%</div>'
+            f'<div class="adb-meta"><span class="adb-key">Model:</span> {compliance.get("model_version", "—")}</div>'
             f'</div>'
         )
         st.markdown(record_html, unsafe_allow_html=True)
 
-    # Optional technical layer.
-    if audit and len(audit) > 5:
-        with st.expander("View raw model features", expanded=False):
-            raw_list = ", ".join(f"{a.get('feature', '')} ({float(a.get('importance', 0)):.2f})" for a in audit[:8])
-            st.caption(raw_list + (" …" if len(audit) > 8 else ""))
+    # Advanced — Raw features: collapsible drawer for power users
+    with st.expander("Advanced — Raw features", expanded=False):
+        st.caption("Traceability and model inputs for this case.")
+        trace = hypothesis.get("traceability", {})
+        if trace:
+            import json
+            try:
+                st.json(trace)
+            except Exception:
+                st.code(str(trace)[:2000] + ("…" if len(str(trace)) > 2000 else ""), language=None)
+        if audit:
+            st.caption("**Audit log (feature → importance)**")
+            for a in audit[:12]:
+                fk = a.get("feature", "")
+                imp = float(a.get("importance", 0) or 0)
+                val = a.get("value")
+                val_str = _format_feature_value(fk, float(val)) if val is not None else "—"
+                st.code(f"{_feature_label(fk)}: {imp:+.2f} (raw: {val_str})")
+        st.caption("**Key hypothesis fields**")
+        keys_to_show = ["user_id", "signal", "confidence", "persona_tier", "macro_reasons"]
+        st.json({k: hypothesis.get(k) for k in keys_to_show if k in hypothesis})
 
 
 # ---------------------------------------------------------------------------
@@ -1676,7 +1878,7 @@ def render_compliance_export_section():
     with col1:
         st.markdown('<div class="ws-subsection">Decision Log Export</div>', unsafe_allow_html=True)
         
-        export_col1, export_col2 = st.columns([2, 1])
+        export_col1, export_col2 = st.columns([2, 1], vertical_alignment="bottom")
         with export_col1:
             date_range = st.selectbox(
                 "Export Period",
@@ -1721,26 +1923,27 @@ def render_compliance_export_section():
 def render_model_governance_panel():
     """Render model version and governance information."""
     compliance = get_compliance_info()
-    
-    st.markdown(f"""
-    <div class="ws-audit-summary">
-        <div class="ws-subsection" style="margin: 0 0 0.75rem 0;">Model Governance</div>
-        <div class="ws-secondary">
-            <strong>Production Model:</strong> {compliance['model_version']}<br>
-            <strong>Build Date:</strong> {compliance['model_build_date']}<br>
-            <strong>Validation Status:</strong> Approved for production use<br>
-            <strong>Performance Monitoring:</strong> Active<br>
-            <strong>Drift Detection:</strong> Enabled (±5% threshold)<br>
-            <strong>Retraining Schedule:</strong> Monthly or on drift detection<br><br>
-            
-            <strong>Approval Chain:</strong><br>
-            • Model Risk: ✓ Approved ({compliance['model_build_date']})<br>
-            • Compliance: ✓ Approved ({compliance['last_audit']})<br>
-            • IT Security: ✓ Approved ({compliance['model_build_date']})<br>
-            • Business Owner: ✓ Approved ({compliance['model_build_date']})
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    ver = compliance.get("model_version", "—")
+    build = compliance.get("model_build_date", "—")
+    audit = compliance.get("last_audit", "—")
+    html = (
+        f'<div class="ws-audit-summary">'
+        f'<div class="ws-subsection" style="margin: 0 0 0.75rem 0;">Model Governance</div>'
+        f'<div class="ws-secondary" style="line-height:1.6;">'
+        f'<strong>Production Model:</strong> {ver}<br>'
+        f'<strong>Build Date:</strong> {build}<br>'
+        f'<strong>Validation Status:</strong> Approved for production use<br>'
+        f'<strong>Performance Monitoring:</strong> Active<br>'
+        f'<strong>Drift Detection:</strong> Enabled (±5% threshold)<br>'
+        f'<strong>Retraining Schedule:</strong> Monthly or on drift detection<br><br>'
+        f'<strong>Approval Chain:</strong><br>'
+        f'• Model Risk: ✓ Approved ({build})<br>'
+        f'• Compliance: ✓ Approved ({audit})<br>'
+        f'• IT Security: ✓ Approved ({build})<br>'
+        f'• Business Owner: ✓ Approved ({build})'
+        f'</div></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_confidence_gauge(confidence: float):
