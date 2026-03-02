@@ -483,10 +483,10 @@ def inject_ws_theme():
             --ws-primary: {WS_GOLD};
             --ws-muted: #6b7280;    /* Softer gray secondary */
             --ws-secondary: #4b5563;
-            --ws-primary-text: #1a1a1a;
+            --ws-primary-text: #0f0f0f;
         }}
         
-        /* Base app styling - calm, airy, line-height 1.5 */
+        /* Base app styling - darker font, line-height 1.5 */
         .stApp {{ 
             background-color: var(--ws-bg); 
             color: var(--ws-primary-text); 
@@ -754,46 +754,86 @@ def inject_ws_theme():
         .ws-model-status .current {{ font-weight: 600; }}
         .ws-model-status .action {{ color: var(--ws-amber); font-weight: 500; }}
         
-        /* Spacing: section 32px, row 16–24px, line-height 1.5 */
+        /* Spacing: section 32px, row 16–24px; white content box like View Details panel */
         .ws-main {{ padding-top: 1rem !important; padding-bottom: 2rem !important; }}
-        .ws-page-title {{ margin-top: 0 !important; margin-bottom: 0.5rem !important; font-size: 1.6rem !important; }}
+        .ws-page-title {{ margin-top: 0 !important; margin-bottom: 0.5rem !important; font-size: 3rem !important; color: #0f0f0f !important; }}
         [data-testid="stAppViewContainer"] {{ padding-top: 1rem !important; background: var(--ws-bg) !important; }}
-        [data-testid="block-container"] {{ padding-top: 1rem !important; padding-bottom: 2rem !important; background: var(--ws-bg) !important; color: #1a1a1a; font-size: 15px; line-height: 1.5; }}
-        .ws-secondary {{ margin-bottom: 0.1rem !important; }}
+        [data-testid="block-container"] {{
+            padding: 1.5rem 2rem 2rem 2rem !important;
+            background: var(--ws-off-white) !important;
+            border-radius: var(--ws-radius) !important;
+            color: #0f0f0f !important;
+            font-size: 15px !important;
+            line-height: 1.5 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+        }}
+        .ws-secondary {{ margin-bottom: 0.1rem !important; color: #262626 !important; }}
         .ws-divider {{ margin: 0.6rem 0 !important; }}
-        .ws-section-header {{ margin-top: 0.25rem !important; margin-bottom: 0.3rem !important; }}
+        .ws-section-header {{ margin-top: 0.25rem !important; margin-bottom: 0.3rem !important; color: #0f0f0f !important; }}
+        /* Darker font for captions and text inside main content (white box) */
+        [data-testid="block-container"] [data-testid="stCaption"], [data-testid="block-container"] p, [data-testid="block-container"] .stMarkdown {{ color: #0f0f0f !important; }}
         
-        /* PART 2: Audit Status compact horizontal layout */
-        .ws-audit-status-row {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 0.5rem; }}
+        /* PART 2: Audit Status — white box like View Details panel */
+        .ws-audit-status-row {{
+            display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 1rem;
+            background: var(--ws-off-white); border-radius: var(--ws-radius); padding: 1rem 1.25rem;
+        }}
         .ws-audit-kpi {{ display: flex; flex-direction: column; gap: 0.15rem; }}
-        .ws-audit-kpi-label {{ font-size: 0.7rem; color: var(--ws-muted); text-transform: uppercase; }}
-        .ws-audit-kpi-value {{ font-weight: 600; font-size: 0.9rem; }}
+        .ws-audit-kpi-label {{ font-size: 0.7rem; color: #374151; text-transform: uppercase; }}
+        .ws-audit-kpi-value {{ font-weight: 600; font-size: 0.9rem; color: #0f0f0f; }}
         
-        /* Case Queue — white cards, 1px left accent only, 24–32px padding, 18px radius; darker text */
+        /* Case Queue — pure white card: BorderWrapper + all inner blocks forced to #fff */
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red),
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber),
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{
-            background: var(--ws-off-white) !important;
-            border: none !important;
-            border-left: 3px solid #e5e7eb !important;
+            background: #fff !important;
+            border: 1px solid #e5e7eb !important;
+            border-left-width: 3px !important;
+            border-left-color: #e5e7eb !important;
             border-radius: var(--ws-radius) !important;
             margin-bottom: 1rem !important;
-            box-shadow: none !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
             padding: 1.5rem 2rem !important;
-            color: #1a1a1a !important;
+            color: #000 !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stVerticalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stVerticalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) [data-testid="stVerticalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [class*="VerticalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [class*="VerticalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) [class*="VerticalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stHorizontalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stHorizontalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) [data-testid="stHorizontalBlock"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="element-container"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="element-container"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) [data-testid="element-container"] {{
+            background: #fff !important;
         }}
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stCaption"],
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stCaption"],
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) [data-testid="stCaption"],
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) p,
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) p,
-        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) p {{
-            color: #1a1a1a !important;
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) p,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) span,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) span,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) span,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) label,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) label,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) label,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) .stMarkdown,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) .stMarkdown,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) .stMarkdown {{
+            color: #000 !important;
         }}
-        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) {{ border-left-color: var(--ws-red) !important; }}
-        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) {{ border-left-color: var(--ws-amber) !important; }}
-        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{ border-left-color: var(--ws-green) !important; }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) {{ border-left-color: var(--ws-red) !important; border-left-width: 3px !important; }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) {{ border-left-color: var(--ws-amber) !important; border-left-width: 3px !important; }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{ border-left-color: var(--ws-green) !important; border-left-width: 3px !important; }}
         .cc-tier-red, .cc-tier-amber, .cc-tier-green {{ display: none !important; }}
+        /* Case card text: force black so Streamlit caption override doesn't win */
+        .cc-card-text {{ color: #000 !important; font-size: 0.875rem; line-height: 1.5; }}
+        .cc-card-text strong {{ color: #000 !important; }}
         .tier-segment {{ 
             display: inline-flex; border-radius: var(--ws-radius-btn); padding: 2px; 
             background: var(--ws-stone); gap: 2px;
@@ -818,17 +858,17 @@ def inject_ws_theme():
 
         /* AI Decision Brief — spacing over boxes, 1px dividers only */
         .adb-header-block {{ background: transparent; border: none; border-bottom: 1px solid rgba(0,0,0,0.08); margin-bottom: 1rem; padding: 0.5rem 0; }}
-        .adb-header-left .adb-line {{ font-size: 14px; color: #1a1a1a; margin: 0.08rem 0; line-height: 1.5; }}
+        .adb-header-left .adb-line {{ font-size: 15px; color: #1a1a1a; margin: 0.08rem 0; line-height: 1.5; }}
         .adb-header-right {{ display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; }}
-        .adb-conf-value {{ font-size: 20px; font-weight: 700; color: #047857; letter-spacing: -0.02em; line-height: 1.2; }}
+        .adb-conf-value {{ font-size: 22px; font-weight: 700; color: #047857; letter-spacing: -0.02em; line-height: 1.2; }}
         .adb-conf-value-mid {{ color: var(--ws-secondary); }}
         .adb-conf-value-low {{ color: var(--ws-red); }}
         .adb-conf-bar-wrap {{ width: 100%; max-width: 120px; height: 5px; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin-top: 0.25rem; }}
         .adb-conf-bar-fill {{ height: 100%; border-radius: 999px; background: #10b981; }}
         .adb-conf-bar-fill.adb-conf-bar-mid {{ background: #a16207; }}
         .adb-conf-bar-fill.adb-conf-bar-low {{ background: var(--ws-red); }}
-        .adb-risk-label {{ font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.25rem; color: var(--ws-muted); }}
-        .adb-tier-descriptor {{ font-size: 10px; font-weight: 600; color: var(--ws-muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.03em; }}
+        .adb-risk-label {{ font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.25rem; color: var(--ws-muted); }}
+        .adb-tier-descriptor {{ font-size: 11px; font-weight: 600; color: var(--ws-muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.03em; }}
         .adb-conf-gauge {{ position: relative; width: 100%; max-width: 140px; margin-top: 0.5rem; }}
         .adb-conf-gauge-track {{ height: 5px; background: #e5e7eb; border-radius: 999px; overflow: visible; position: relative; }}
         .adb-conf-gauge-fill {{ height: 100%; border-radius: 999px; transition: width 0.2s; }}
@@ -836,59 +876,59 @@ def inject_ws_theme():
         .adb-conf-gauge-fill.mid {{ background: #a16207; }}
         .adb-conf-gauge-fill.low {{ background: var(--ws-red); }}
         .adb-conf-gauge-threshold {{ position: absolute; top: -2px; bottom: -2px; width: 2px; background: #9ca3af; border-radius: 1px; z-index: 1; }}
-        .adb-conf-gauge-labels {{ display: flex; justify-content: space-between; font-size: 9px; color: var(--ws-muted); margin-top: 0.35rem; }}
+        .adb-conf-gauge-labels {{ display: flex; justify-content: space-between; font-size: 10px; color: var(--ws-muted); margin-top: 0.35rem; }}
         .adb-conf-gauge-labels .th {{ font-weight: 700; color: #6b7280; }}
         .adb-band-high {{ color: #047857; font-weight: 600; }}
         .adb-band-mid {{ color: var(--ws-muted); }}
         .adb-band-low {{ color: var(--ws-red); font-weight: 600; }}
-        .adb-macro-reason {{ font-size: 13px; color: var(--ws-muted); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(0,0,0,0.08); }}
-        /* View Details expander: no nested boxes, 24–32px spacing */
-        .adb-header-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--ws-off-white); border-radius: var(--ws-radius); border: none; line-height: 1.5; font-size: 12px; }}
+        .adb-macro-reason {{ font-size: 14px; color: var(--ws-muted); margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(0,0,0,0.08); }}
+        /* View Details expander: no nested boxes, 24–32px spacing; font sizes +10% */
+        .adb-header-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--ws-off-white); border-radius: var(--ws-radius); border: none; line-height: 1.5; font-size: 13px; }}
         .adb-header-sep {{ color: #bbb; font-weight: 400; padding: 0 0.35rem; user-select: none; }}
-        .adb-header-label {{ font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin-right: 0.25rem; }}
+        .adb-header-label {{ font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin-right: 0.25rem; }}
         .adb-header-item {{ display: inline-flex; align-items: center; }}
-        .adb-chip {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: var(--ws-radius-input); font-size: 11px; font-weight: 500; background: var(--ws-off-white); border: none; color: var(--ws-secondary); max-width: 10em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-        .adb-conf-pill {{ display: inline-flex; align-items: center; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--ws-off-white); border: none; }}
-        .adb-tier-block {{ display: inline-flex; flex-direction: column; align-items: center; gap: 0.12rem; padding: 0.35rem 0.6rem; border-radius: var(--ws-radius-btn); font-size: 13px; font-weight: 800; min-width: 4.5rem; letter-spacing: 0.02em; box-shadow: none; border: none; }}
+        .adb-chip {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: var(--ws-radius-input); font-size: 12px; font-weight: 500; background: var(--ws-off-white); border: none; color: var(--ws-secondary); max-width: 10em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+        .adb-conf-pill {{ display: inline-flex; align-items: center; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--ws-off-white); border: none; }}
+        .adb-tier-block {{ display: inline-flex; flex-direction: column; align-items: center; gap: 0.12rem; padding: 0.35rem 0.6rem; border-radius: var(--ws-radius-btn); font-size: 14px; font-weight: 800; min-width: 4.5rem; letter-spacing: 0.02em; box-shadow: none; border: none; }}
         .adb-tier-block.red {{ background: #fef2f2; color: var(--ws-red); }}
         .adb-tier-block.amber {{ background: #fffbeb; color: var(--ws-amber); }}
         .adb-tier-block.green {{ background: #f0fdf4; color: var(--ws-green); }}
-        .adb-tier-block .adb-tier-icon {{ font-size: 16px; line-height: 1; margin-right: 0.25rem; }}
-        .adb-tier-action {{ display: inline-flex; align-items: center; gap: 0.2rem; font-size: 9px; font-weight: 700; text-align: center; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.4rem; border-radius: 999px; border: none; }}
+        .adb-tier-block .adb-tier-icon {{ font-size: 18px; line-height: 1; margin-right: 0.25rem; }}
+        .adb-tier-action {{ display: inline-flex; align-items: center; gap: 0.2rem; font-size: 10px; font-weight: 700; text-align: center; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.4rem; border-radius: 999px; border: none; }}
         .adb-tier-action.red {{ background: #fef2f2; color: var(--ws-red); }}
         .adb-tier-action.amber {{ background: #fef3c7; color: var(--ws-amber); }}
         .adb-tier-action.green {{ background: #d1fae5; color: var(--ws-green); }}
-        .adb-tier-action-icon {{ font-size: 10px; line-height: 1; }}
-        .adb-why-flagged {{ font-size: 11px; color: var(--ws-muted); flex: 1; min-width: 100px; line-height: 1.5; }}
+        .adb-tier-action-icon {{ font-size: 11px; line-height: 1; }}
+        .adb-why-flagged {{ font-size: 12px; color: var(--ws-muted); flex: 1; min-width: 100px; line-height: 1.5; }}
         .adb-why-flagged .adb-header-label {{ margin-right: 0.2rem; }}
         .adb-view-card {{ background: var(--ws-off-white); border: none; border-radius: var(--ws-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }}
         .adb-view-card .adb-title {{ margin-bottom: 0.5rem; }}
-        .adb-summary-headline {{ font-size: 13px; font-weight: 700; color: #111; margin-bottom: 0.5rem; line-height: 1.5; }}
-        .adb-summary-line {{ font-size: 12px; color: var(--ws-muted); line-height: 1.5; }}
+        .adb-summary-headline {{ font-size: 14px; font-weight: 700; color: #111; margin-bottom: 0.5rem; line-height: 1.5; }}
+        .adb-summary-line {{ font-size: 13px; color: var(--ws-muted); line-height: 1.5; }}
         .adb-view-sep {{ height: 1px; background: rgba(0,0,0,0.08); margin: 0.75rem 0; }}
         .adb-row {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.5rem 0; border: none; border-bottom: 1px solid rgba(0,0,0,0.08); margin-bottom: 0.75rem; background: transparent; line-height: 1.5; }}
         .adb-section {{ background: transparent; padding: 0.5rem 0; margin-bottom: 0.75rem; border: none; border-bottom: 1px solid rgba(0,0,0,0.08); line-height: 1.5; }}
         .adb-section:last-of-type {{ border-bottom: none; }}
-        .adb-case-title {{ font-size: 18px; font-weight: 600; color: #111; letter-spacing: -0.01em; }}
-        .adb-title {{ font-size: 12px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.22rem; }}
-        .adb-line {{ font-size: 14px; color: #1a1a1a; margin: 0.08rem 0; line-height: 1.42; }}
+        .adb-case-title {{ font-size: 20px; font-weight: 600; color: #111; letter-spacing: -0.01em; }}
+        .adb-title {{ font-size: 13px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.22rem; }}
+        .adb-line {{ font-size: 15px; color: #1a1a1a; margin: 0.08rem 0; line-height: 1.42; }}
         .adb-key {{ color: #444; font-weight: 500; }}
-        .adb-emph {{ color: #111; font-weight: 600; font-size: 15px; }}
-        .adb-badge {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em; border: none; }}
+        .adb-emph {{ color: #111; font-weight: 600; font-size: 17px; }}
+        .adb-badge {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 0.88rem; font-weight: 600; letter-spacing: 0.02em; border: none; }}
         .adb-badge-red {{ background: #fef2f2; color: var(--ws-red); }}
-        .adb-badge-green {{ background: #ecfdf5; color: #047857; font-size: 16px; font-weight: 700; }}
+        .adb-badge-green {{ background: #ecfdf5; color: #047857; font-size: 18px; font-weight: 700; }}
         .adb-badge-neutral {{ background: #f3f4f6; color: var(--ws-muted); }}
-        .adb-macro-grid {{ display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.75rem; font-size: 13px; color: var(--ws-secondary); }}
+        .adb-macro-grid {{ display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.75rem; font-size: 14px; color: var(--ws-secondary); }}
         .adb-macro-grid .k {{ color: var(--ws-muted); }}
-        .adb-macro-chip {{ display: inline-block; padding: 0.3rem 0.6rem; border-radius: var(--ws-radius-input); font-size: 12px; font-weight: 600; background: #f3f4f6; border: none; color: var(--ws-secondary); }}
-        .adb-impact-tag {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.5rem; border: none; }}
+        .adb-macro-chip {{ display: inline-block; padding: 0.3rem 0.6rem; border-radius: var(--ws-radius-input); font-size: 13px; font-weight: 600; background: #f3f4f6; border: none; color: var(--ws-secondary); }}
+        .adb-impact-tag {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.5rem; border: none; }}
         .adb-impact-tag.high {{ background: #d1fae5; color: #047857; }}
         .adb-impact-tag.medium {{ background: #fef3c7; color: var(--ws-amber); }}
         .adb-impact-tag.low {{ background: #f3f4f6; color: var(--ws-muted); }}
-        .adb-impact-metric {{ font-size: 13px; margin: 0.35rem 0; }}
+        .adb-impact-metric {{ font-size: 14px; margin: 0.35rem 0; }}
         .adb-impact-metric .k {{ color: var(--ws-muted); font-weight: 500; }}
         .adb-progress-wrap {{ margin: 0.75rem 0; }}
-        .adb-progress-label {{ font-size: 11px; color: var(--ws-muted); margin-bottom: 0.25rem; display: flex; justify-content: space-between; }}
+        .adb-progress-label {{ font-size: 12px; color: var(--ws-muted); margin-bottom: 0.25rem; display: flex; justify-content: space-between; }}
         .adb-progress-bar {{ height: 5px; border-radius: 999px; overflow: visible; background: #e5e7eb; position: relative; display: flex; }}
         .adb-progress-bar .fill {{ height: 100%; border-radius: 999px 0 0 999px; transition: width 0.2s; min-width: 2px; }}
         .adb-progress-bar .fill.rest {{ flex: 1; background: #e5e7eb; border-radius: 0 999px 999px 0; min-width: 0; }}
@@ -898,18 +938,18 @@ def inject_ws_theme():
         .adb-progress-bar .fill.illiq-safe {{ background: #34d399; }}
         .adb-progress-bar .fill.illiq-unsafe {{ background: var(--ws-red); }}
         .adb-progress-threshold {{ position: absolute; top: -1px; bottom: -1px; width: 2px; background: #9ca3af; border-radius: 1px; z-index: 2; }}
-        .adb-progress-threshold-label {{ position: absolute; top: 100%; left: 50%; transform: translate(-50%, 0.25rem); font-size: 9px; font-weight: 700; color: var(--ws-muted); white-space: nowrap; }}
-        .adb-progress-status {{ font-size: 10px; font-weight: 600; color: var(--ws-muted); margin-top: 0.5rem; }}
+        .adb-progress-threshold-label {{ position: absolute; top: 100%; left: 50%; transform: translate(-50%, 0.25rem); font-size: 10px; font-weight: 700; color: var(--ws-muted); white-space: nowrap; }}
+        .adb-progress-status {{ font-size: 11px; font-weight: 600; color: var(--ws-muted); margin-top: 0.5rem; }}
         .adb-progress-bar.threshold {{ background: #e5e7eb; }}
         .adb-progress-bar.threshold .fill {{ background: var(--ws-red); }}
-        .adb-trigger-grid {{ display: grid; grid-template-columns: 6.5em 1fr; gap: 0.35rem 0.75rem; font-size: 12px; color: var(--ws-primary-text); align-items: baseline; }}
+        .adb-trigger-grid {{ display: grid; grid-template-columns: 6.5em 1fr; gap: 0.35rem 0.75rem; font-size: 13px; color: var(--ws-primary-text); align-items: baseline; }}
         .adb-trigger-grid .adb-trigger-k {{ color: var(--ws-muted); font-weight: 500; }}
         .adb-trigger-na {{ color: var(--ws-muted); font-style: italic; cursor: help; }}
-        .adb-drivers-legend {{ font-size: 11px; color: var(--ws-muted); margin-bottom: 0.5rem; font-style: italic; }}
+        .adb-drivers-legend {{ font-size: 12px; color: var(--ws-muted); margin-bottom: 0.5rem; font-style: italic; }}
         .adb-attr-row-top {{ background: transparent; border-left: 3px solid #0ea5e9; padding-left: 0.5rem; }}
-        .adb-attr-rank {{ font-weight: 700; color: #0284c7; margin-right: 0.25rem; font-size: 12px; }}
+        .adb-attr-rank {{ font-weight: 700; color: #0284c7; margin-right: 0.25rem; font-size: 13px; }}
         .adb-attr-row .adb-attr-driver {{ color: var(--ws-primary-text); font-weight: 400; }}
-        .adb-attr-impact {{ font-weight: 600; color: #047857; font-size: 13px; }}
+        .adb-attr-impact {{ font-weight: 600; color: #047857; font-size: 14px; }}
         .adb-attr-impact.neg {{ color: var(--ws-red); }}
         .adb-impact-block {{ border: none; border-radius: var(--ws-radius); padding: 1rem 1.25rem; background: transparent; }}
         .adb-decision-status-box {{ border: none; border-radius: var(--ws-radius); padding: 0.75rem 1rem; margin-bottom: 0.75rem; background: transparent; }}
@@ -919,30 +959,30 @@ def inject_ws_theme():
             gap: 0.5rem;
             align-items: center;
         }}
-        .adb-attr-header {{ font-size: 12px; color: var(--ws-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600; }}
-        .adb-attr-row {{ font-size: 14px; margin: 0.4rem 0; line-height: 1.5; }}
+        .adb-attr-header {{ font-size: 13px; color: var(--ws-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600; }}
+        .adb-attr-row {{ font-size: 15px; margin: 0.4rem 0; line-height: 1.5; }}
         .adb-track {{ background: #e5e7eb; border-radius: 999px; height: 5px; overflow: hidden; }}
         .adb-fill {{ background: #94a3b8; height: 100%; border-radius: 999px; }}
         .adb-fill-main {{ background: #0ea5e9; }}
         .adb-impact-tag-wrap {{ display: inline-flex; align-items: center; gap: 0.2rem; margin-bottom: 0.35rem; }}
-        .adb-impact-info {{ font-size: 11px; color: #64748b; cursor: help; opacity: 0.85; }}
-        .adb-impact-subhead {{ font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0.4rem 0 0.2rem 0; }}
+        .adb-impact-info {{ font-size: 12px; color: #64748b; cursor: help; opacity: 0.85; }}
+        .adb-impact-subhead {{ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin: 0.4rem 0 0.2rem 0; }}
         .adb-impact-subhead:first-of-type {{ margin-top: 0; }}
-        .adb-attr-val {{ font-weight: 700; text-align: right; color: #111; font-size: 14px; }}
-        .adb-attr-raw {{ color: #555; font-size: 13px; text-align: right; }}
-        .adb-impact-amount {{ font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 0.12rem 0 0.2rem; line-height: 1.3; }}
+        .adb-attr-val {{ font-weight: 700; text-align: right; color: #111; font-size: 15px; }}
+        .adb-attr-raw {{ color: #555; font-size: 14px; text-align: right; }}
+        .adb-impact-amount {{ font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0.12rem 0 0.2rem; line-height: 1.3; }}
         .adb-impact-positive {{ color: #0F5132; }}
-        .adb-impact-unavail {{ font-size: 14px; font-weight: 500; color: #333; margin: 0.12rem 0; line-height: 1.48; }}
-        .adb-status {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 13px; font-weight: 600; margin-bottom: 0.25rem; border: none; }}
+        .adb-impact-unavail {{ font-size: 15px; font-weight: 500; color: #333; margin: 0.12rem 0; line-height: 1.48; }}
+        .adb-status {{ display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px; font-size: 14px; font-weight: 600; margin-bottom: 0.25rem; border: none; }}
         .adb-status-approved {{ background: #047857; color: #fff; }}
         .adb-status-rejected {{ background: #fef2f2; color: var(--ws-red); }}
         .adb-status-pending {{ background: #f3f4f6; color: var(--ws-muted); }}
-        .adb-meta {{ font-size: 13px; color: var(--ws-muted); margin: 0.15rem 0; line-height: 1.5; }}
+        .adb-meta {{ font-size: 14px; color: var(--ws-muted); margin: 0.15rem 0; line-height: 1.5; }}
         .adb-divider {{ height: 1px; background: rgba(0,0,0,0.08); margin: 0.75rem 0; }}
-        .adb-muted {{ color: var(--ws-muted); font-size: 14px; }}
+        .adb-muted {{ color: var(--ws-muted); font-size: 15px; }}
         /* Decision footer - 1px divider only, no box */
         .adb-decision-footer {{ margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.08); background: transparent; border-radius: 0; padding: 0; }}
-        .adb-decision-footer .adb-override-badge {{ display: inline-block; padding: 0.25rem 0.5rem; border-radius: 999px; font-size: 12px; font-weight: 600; background: #e0f2fe; color: #0369a1; border: none; margin-bottom: 0.5rem; }}
+        .adb-decision-footer .adb-override-badge {{ display: inline-block; padding: 0.25rem 0.5rem; border-radius: 999px; font-size: 13px; font-weight: 600; background: #e0f2fe; color: #0369a1; border: none; margin-bottom: 0.5rem; }}
         .adb-raw-drawer {{ margin-top: 0.5rem; }}
         
         /* Action Stack: 1px left accent only, white card, 18px radius, 24–32px spacing */

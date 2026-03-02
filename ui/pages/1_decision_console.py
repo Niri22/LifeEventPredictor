@@ -98,6 +98,13 @@ def _confidence_label(confidence: float) -> str:
     return f"{confidence:.2f} ({band_name})"
 
 
+def _cc_esc(s: str) -> str:
+    """Escape for HTML in case card text."""
+    if not s:
+        return ""
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
 def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
     """Render one case as a compact card: left (tier, confidence, persona), center (id, signal, pathway, product, why), right (actions)."""
     user_id = hypothesis["user_id"]
@@ -118,32 +125,34 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
 
         with col_left:
             tier_badge = {"red": "🔴 Red", "amber": "🟠 Amber", "green": "🟢 Green"}.get(tier, "Green")
-            st.caption(f"**{tier_badge}**")
+            st.markdown(f'<p class="cc-card-text"><strong>{_cc_esc(tier_badge)}</strong></p>', unsafe_allow_html=True)
             conf = hypothesis.get("confidence", 0)
-            st.caption(_confidence_label(conf))
-            st.caption(TIER_LABELS.get(hypothesis.get("persona_tier", ""), hypothesis.get("persona_tier", "—")))
+            st.markdown(f'<p class="cc-card-text">{_cc_esc(_confidence_label(conf))}</p>', unsafe_allow_html=True)
+            persona = TIER_LABELS.get(hypothesis.get("persona_tier", ""), hypothesis.get("persona_tier", "—"))
+            st.markdown(f'<p class="cc-card-text">{_cc_esc(persona)}</p>', unsafe_allow_html=True)
 
         with col_center:
             short_id = (user_id[:14] + "…") if len(user_id) > 14 else user_id
-            st.caption(f"**{short_id}** · {SIGNAL_LABELS.get(hypothesis.get('signal', ''), hypothesis.get('signal', '—'))}")
+            signal_lbl = SIGNAL_LABELS.get(hypothesis.get("signal", ""), hypothesis.get("signal", "—"))
+            st.markdown(f'<p class="cc-card-text"><strong>{_cc_esc(short_id)}</strong> · {_cc_esc(signal_lbl)}</p>', unsafe_allow_html=True)
             pathway = dist.get("cohort_label") or "—"
             product_name = tp.get("name") or tp.get("code") or "—"
-            st.caption(f"Pathway: {pathway} · {product_name}")
+            st.markdown(f'<p class="cc-card-text">Pathway: {_cc_esc(pathway)} · {_cc_esc(product_name)}</p>', unsafe_allow_html=True)
             why = hypothesis.get("nudge") or gov.get("reason") or "No rationale."
-            st.caption(why)
+            st.markdown(f'<p class="cc-card-text">{_cc_esc(why)}</p>', unsafe_allow_html=True)
 
         with col_right:
             # Override rate at moment of decision (duplicated from Audit Status for visibility)
             compliance = get_compliance_info()
             override_pct = compliance.get("override_rate_30d", 0)
-            st.caption(f"Override rate: **{override_pct:.1f}%** (30d)")
+            st.markdown(f'<p class="cc-card-text">Override rate: <strong>{override_pct:.1f}%</strong> (30d)</p>', unsafe_allow_html=True)
             # Green cases: no Approve/Reject buttons (auto-approve candidate); show status only if already decided
             if tier == "green":
                 if is_locked:
                     action = existing.get("action", "").upper()
                     st.success(f"✓ {action}")
                 else:
-                    st.caption("Auto-approve candidate")
+                    st.markdown('<p class="cc-card-text">Auto-approve candidate</p>', unsafe_allow_html=True)
             else:
                 # Red and Amber: show buttons or locked status
                 if is_locked:
@@ -154,7 +163,7 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
                     rej_reason_key = f"rej_reason_{card_key}"
                     rej_text_key = f"rej_text_{card_key}"
                     rej_options = ["—", "Too aggressive", "Not suitable", "Client context", "Other"]
-                    st.caption("Reason (optional)")
+                    st.markdown('<p class="cc-card-text">Reason (optional)</p>', unsafe_allow_html=True)
                     st.selectbox("Reject reason", rej_options, key=rej_reason_key, label_visibility="collapsed")
                     reason_val = st.session_state.get(rej_reason_key, "—")
                     if reason_val == "Other":
