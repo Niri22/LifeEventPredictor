@@ -27,30 +27,36 @@ except ImportError:
     def get_recent_feedback(limit: int = 10) -> list:
         """Fallback if deployed version lacks this function."""
         return []
-from ui.lib import (
-    TIER_LABELS,
-    SIGNAL_LABELS,
-    GOV_TIER_ICONS,
-    MIDNIGHT,
-    WS_GOLD,
-    inject_ws_theme,
-    load_data,
-    load_precomputed_hypotheses,
-    get_default_macro,
-    apply_experiment_reweight,
-    confidence_band,
-    metric_with_info,
-    render_confidence_gauge,
-    render_pulse_sidebar,
-    render_view_details_expander,
-    show_micro_feedback_toast,
-    get_system_timestamps,
-    render_audit_status,
-    render_empty_state,
-    get_compliance_info,
-    render_client_snapshot,
-    format_currency,
-)
+import ui.lib as _ui_lib
+
+TIER_LABELS = _ui_lib.TIER_LABELS
+SIGNAL_LABELS = _ui_lib.SIGNAL_LABELS
+GOV_TIER_ICONS = _ui_lib.GOV_TIER_ICONS
+MIDNIGHT = _ui_lib.MIDNIGHT
+WS_GOLD = _ui_lib.WS_GOLD
+inject_ws_theme = _ui_lib.inject_ws_theme
+load_data = _ui_lib.load_data
+load_precomputed_hypotheses = _ui_lib.load_precomputed_hypotheses
+get_default_macro = _ui_lib.get_default_macro
+apply_experiment_reweight = _ui_lib.apply_experiment_reweight
+confidence_band = _ui_lib.confidence_band
+metric_with_info = _ui_lib.metric_with_info
+render_confidence_gauge = _ui_lib.render_confidence_gauge
+render_pulse_sidebar = _ui_lib.render_pulse_sidebar
+show_micro_feedback_toast = _ui_lib.show_micro_feedback_toast
+get_system_timestamps = _ui_lib.get_system_timestamps
+render_audit_status = _ui_lib.render_audit_status
+render_empty_state = _ui_lib.render_empty_state
+get_compliance_info = _ui_lib.get_compliance_info
+render_client_snapshot = _ui_lib.render_client_snapshot
+format_currency = _ui_lib.format_currency
+
+# Optional: may be missing on older deploy; use stub so Decision Console still loads
+render_view_details_expander = getattr(_ui_lib, "render_view_details_expander", None)
+if render_view_details_expander is None:
+
+    def render_view_details_expander(hypothesis: dict, existing_decision: dict = None):
+        st.caption("Detail view unavailable. Ensure the latest ui.lib is deployed.")
 
 st.set_page_config(page_title="Decision Console — W Pulse", page_icon="W", layout="wide")
 
