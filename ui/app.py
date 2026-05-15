@@ -35,6 +35,8 @@ from ui.lib import (
     get_system_timestamps,
     get_compliance_info,
     PERSONAS,
+    metric_stack_html,
+    summary_status_chip_html,
 )
 from ui.onboarding import show_onboarding_dialog, should_show_onboarding
 
@@ -44,6 +46,106 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+def _inject_workspace_prep_css() -> None:
+    """Hide sidebar, status widget, and block interaction while workspace prep overlay is shown."""
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stSidebar"] {
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            pointer-events: none !important;
+        }
+        [data-testid="collapsedControl"] { display: none !important; }
+        [data-testid="stStatusWidget"] { display: none !important; }
+        [data-testid="stToolbar"] { visibility: hidden !important; pointer-events: none !important; }
+        .worksprep-overlay-root {
+            position: fixed;
+            inset: 0;
+            z-index: 999990;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(249, 250, 251, 0.98);
+            font-family: 'Inter', system-ui, sans-serif;
+            pointer-events: auto;
+        }
+        .worksprep-card {
+            max-width: 32rem;
+            width: 90%;
+            padding: 2.25rem 2.5rem;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            text-align: center;
+        }
+        .worksprep-card h2 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        .worksprep-card p {
+            margin: 0 0 1.5rem 0;
+            font-size: 1rem;
+            line-height: 1.55;
+            color: #4b5563;
+        }
+        .worksprep-spinner-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .worksprep-spinner {
+            width: 2.5rem;
+            height: 2.5rem;
+            border: 3px solid #e5e7eb;
+            border-top-color: #111827;
+            border-radius: 50%;
+            animation: worksprep-spin 0.75s linear infinite;
+        }
+        @keyframes worksprep-spin {
+            to { transform: rotate(360deg); }
+        }
+        .worksprep-caption {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_workspace_prep_overlay(*, show_ingesting_line: bool) -> None:
+    """Centered modal-style message; CSS spinner runs while load_data executes on next run."""
+    extra = (
+        "<p class=\"worksprep-caption\">Ingesting data and re-running models…</p>"
+        if show_ingesting_line
+        else ""
+    )
+    st.markdown(
+        f"""
+        <div class="worksprep-overlay-root" aria-busy="true" role="alertdialog" aria-live="polite">
+            <div class="worksprep-card">
+                <h2>Preparing your workspace</h2>
+                <p>We're currently ingesting your data and re-running the models. This usually takes about
+                <strong>10 seconds</strong>. Please keep this tab open while we finish setting everything up.</p>
+                <div class="worksprep-spinner-wrap">
+                    <div class="worksprep-spinner" aria-hidden="true"></div>
+                    {extra}
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _safe_float(val, default: float = 0.0) -> float:
@@ -61,19 +163,49 @@ def main():
     if "decisions" not in st.session_state:
         st.session_state.decisions = {}
 
-    render_pulse_sidebar("control")
-
     if should_show_onboarding():
+        render_pulse_sidebar("control")
         show_onboarding_dialog()
         st.stop()
 
-    try:
-        profiles, txns, features = load_data()
-    except Exception:
-        st.markdown('<div class="ws-main">', unsafe_allow_html=True)
-        render_empty_state("No data available.", "Awaiting signals.", "📊")
-        st.markdown("</div>", unsafe_allow_html=True)
-        return
+    # Post-onboarding: paint centered prep UI first (splash), then load_data on the next run (loading)
+    # so the browser keeps showing the overlay while load_data() executes.
+    prep = st.session_state.get("workspace_prep_state")
+    if prep == "splash":
+        _inject_workspace_prep_css()
+        _render_workspace_prep_overlay(show_ingesting_line=False)
+        st.session_state["workspace_prep_state"] = "loading"
+        st.rerun()
+
+    if prep == "loading":
+        _inject_workspace_prep_css()
+        _render_workspace_prep_overlay(show_ingesting_line=True)
+        try:
+            profiles, txns, features = load_data()
+            st.session_state["_pulse_data_bundle"] = (profiles, txns, features)
+            st.session_state["workspace_prep_state"] = None
+            st.rerun()
+        except Exception:
+            st.session_state["workspace_prep_state"] = None
+            st.session_state.pop("_pulse_data_bundle", None)
+            render_pulse_sidebar("control")
+            st.markdown('<div class="ws-main">', unsafe_allow_html=True)
+            render_empty_state("No data available.", "Awaiting signals.", "📊")
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.stop()
+
+    render_pulse_sidebar("control")
+
+    if st.session_state.get("_pulse_data_bundle") is not None:
+        profiles, txns, features = st.session_state.pop("_pulse_data_bundle")
+    else:
+        try:
+            profiles, txns, features = load_data()
+        except Exception:
+            st.markdown('<div class="ws-main">', unsafe_allow_html=True)
+            render_empty_state("No data available.", "Awaiting signals.", "📊")
+            st.markdown("</div>", unsafe_allow_html=True)
+            return
 
     macro = st.session_state.macro
     tier_filter = st.session_state.get("pulse_tier_filter", [k for k in TIER_LABELS if k != "not_eligible"])
@@ -134,21 +266,19 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ── SUMMARY LINE — counts only, no buttons ──
+    # ── SUMMARY BAR — status chips (navy / tier-colored pills) ──
     st.markdown(
-        f'<div style="font-size:0.85rem;color:#64748b;margin-bottom:0.5rem;padding-top:5px;padding-bottom:5px;">'
-        f'<strong style="color:#0f172a;">{len(red_cases)}</strong> High-Risk '
-        f'<span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>'
-        f'<strong style="color:#0f172a;">{len(undecided_amber)}</strong> Amber '
-        f'<span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>'
-        f'<strong style="color:#0f172a;">{len(green_cases)}</strong> Green '
-        f'<span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>'
-        f'{format_currency(projected_aua)} at stake</div>',
+        f'<div class="ws-summary-chip-row">'
+        f'{summary_status_chip_html(str(len(red_cases)), "High-Risk", variant="navy")}'
+        f'{summary_status_chip_html(str(len(undecided_amber)), "Amber", variant="amber")}'
+        f'{summary_status_chip_html(str(len(green_cases)), "Green", variant="green")}'
+        f'{summary_status_chip_html(format_currency(projected_aua), "At stake", variant="slate")}'
+        f"</div>",
         unsafe_allow_html=True,
     )
 
     # ── ACTION STACK — each card is one st.columns row: [text | button] ──
-    st.markdown('<div class="ws-section-header">Action Stack</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ws-section-header ws-section-header--action-stack">Action Stack</div>', unsafe_allow_html=True)
 
     actions_rendered = 0
 
@@ -157,11 +287,12 @@ def main():
         try:
             c_text, c_btn = st.columns([4, 1])
             with c_text:
+                stack = metric_stack_html("High-Risk Review", f"{len(red_cases)} cases", extra_class="ws-metric-stack--tight")
                 st.markdown(
-                    f'<div class="ws-action-card-highrisk" style="padding:0.6rem 0.9rem;">'
-                    f'<div style="font-weight:600;font-size:0.9rem;">High-Risk Review — {len(red_cases)} cases</div>'
-                    f'<div style="font-size:0.8rem;color:#64748b;">Liquidity + suitability ({n_red_liquidity} liquidity, {n_red_other} other) · Prevents unsuitable allocation</div>'
-                    f'</div>',
+                    f'<div class="ws-action-card-highrisk ws-action-stack-row">'
+                    f"{stack}"
+                    f'<div class="ws-action-stack-desc">Liquidity + suitability ({n_red_liquidity} liquidity, {n_red_other} other) · Prevents unsuitable allocation</div>'
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
             with c_btn:
@@ -179,11 +310,12 @@ def main():
         try:
             c_text, c_btn = st.columns([4, 1])
             with c_text:
+                stack = metric_stack_html("Batch Approvals", f"{len(undecided_amber)} eligible", extra_class="ws-metric-stack--tight")
                 st.markdown(
-                    f'<div class="ws-action-card-batch" style="padding:0.6rem 0.9rem;">'
-                    f'<div style="font-weight:600;font-size:0.9rem;">Batch Approvals — {len(undecided_amber)} eligible</div>'
-                    f'<div style="font-size:0.8rem;color:#64748b;">Medium risk + high confidence, cohort-safe · Reduces curator load ~40%</div>'
-                    f'</div>',
+                    f'<div class="ws-action-card-batch ws-action-stack-row">'
+                    f"{stack}"
+                    f'<div class="ws-action-stack-desc">Medium risk + high confidence, cohort-safe · Reduces curator load ~40%</div>'
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
             with c_btn:
@@ -207,11 +339,16 @@ def main():
             delta_aua = _safe_float(row.get("delta_aua_uplift"), 0)
             c_text, c_btn = st.columns([4, 1])
             with c_text:
+                stack = metric_stack_html(
+                    "Growth",
+                    f"+{uplift_pct:.1f}% · {format_currency(delta_aua)}",
+                    extra_class="ws-metric-stack--tight",
+                )
                 st.markdown(
-                    f'<div class="ws-action-card-growth" style="padding:0.6rem 0.9rem;">'
-                    f'<div style="font-weight:600;font-size:0.9rem;">Growth — {persona_lbl} + {product_lbl}</div>'
-                    f'<div style="font-size:0.8rem;color:#64748b;">+{uplift_pct:.1f}% uplift · +{format_currency(delta_aua)} projected AUA</div>'
-                    f'</div>',
+                    f'<div class="ws-action-card-growth ws-action-stack-row">'
+                    f"{stack}"
+                    f'<div class="ws-action-stack-desc">{persona_lbl} · {product_lbl}</div>'
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
             with c_btn:
@@ -230,7 +367,13 @@ def main():
     total_requiring_review = len(undecided_red) + len(undecided_amber)
     total_queue = len(red_cases) + len(amber_cases)
     processed_today = total_queue - total_requiring_review if total_queue else 0
-    st.caption(f"Processed: **{processed_today} / {total_queue}** · Remaining: **{total_requiring_review}**")
+    st.markdown(
+        f'<div class="ws-queue-metric-row">'
+        f'{metric_stack_html("Processed", f"{processed_today} / {total_queue}")}'
+        f'{metric_stack_html("Remaining review", str(total_requiring_review))}'
+        f"</div>",
+        unsafe_allow_html=True,
+    )
     st.progress(processed_today / total_queue if total_queue else 1.0)
 
     st.markdown('<div class="ws-divider"></div>', unsafe_allow_html=True)
@@ -246,12 +389,18 @@ def main():
                 top_pathway_label = experiment_product_label(str(row.get("product_code", "—")))
             except Exception:
                 pass
-        pathway_line = f'<div style="font-size:0.78rem;color:#64748b;">Top pathway: {top_pathway_label}.</div>' if top_pathway_label else ""
+        pathway_line = (
+            f'<div class="ws-impact-footnote ws-action-stack-desc">Top pathway: {top_pathway_label}.</div>'
+            if top_pathway_label
+            else ""
+        )
+        au_stack = metric_stack_html("Projected AUA", format_currency(projected_aua))
+        up_stack = metric_stack_html("Net uplift", f"+{net_uplift:.2f}")
         st.markdown(
-            f'<div class="ws-impact-card" style="padding:0.6rem 0.9rem;">'
-            f'<div style="font-weight:600;font-size:1.0rem;">{format_currency(projected_aua)} projected AUA    ·    Net uplift +{net_uplift:.2f}</div>'
-            f'{pathway_line}'
-            f'</div>',
+            f'<div class="ws-impact-card">'
+            f'<div class="ws-impact-metric-row">{au_stack}{up_stack}</div>'
+            f"{pathway_line}"
+            f"</div>",
             unsafe_allow_html=True,
         )
     with imp_right:
@@ -266,13 +415,13 @@ def main():
     with st.expander("System Metrics", expanded=False):
         st.markdown(
             f'<div class="ws-kpi-compact">'
-            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(len(filtered))}</span><span class="lbl">Active</span></div>'
-            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(total_requiring_review)}</span><span class="lbl">Pending</span></div>'
-            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(len(green_cases))}</span><span class="lbl">Auto-Approved</span></div>'
-            f'<div class="ws-kpi-compact-item"><span class="val">{format_number(len(red_cases))}</span><span class="lbl">Suppressed</span></div>'
-            f'<div class="ws-kpi-compact-item"><span class="val">+{net_uplift:.2f}</span><span class="lbl">Net Uplift</span></div>'
-            f'<div class="ws-kpi-compact-item"><span class="val">{format_currency(projected_aua)}</span><span class="lbl">Proj. AUA</span></div>'
-            f'</div>',
+            f'<div class="ws-kpi-compact-item"><span class="ws-metric-lbl">Active</span><span class="ws-metric-val">{format_number(len(filtered))}</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="ws-metric-lbl">Pending</span><span class="ws-metric-val">{format_number(total_requiring_review)}</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="ws-metric-lbl">Auto-Approved</span><span class="ws-metric-val">{format_number(len(green_cases))}</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="ws-metric-lbl">Suppressed</span><span class="ws-metric-val">{format_number(len(red_cases))}</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="ws-metric-lbl">Net uplift</span><span class="ws-metric-val">+{net_uplift:.2f}</span></div>'
+            f'<div class="ws-kpi-compact-item"><span class="ws-metric-lbl">Proj. AUA</span><span class="ws-metric-val">{format_currency(projected_aua)}</span></div>'
+            f"</div>",
             unsafe_allow_html=True,
         )
 

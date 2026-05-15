@@ -4,6 +4,7 @@ used across Control Center, Decision Console, and Growth Engine pages.
 """
 
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,9 +29,50 @@ from src.utils.io import DATA_RAW, DATA_PROCESSED, DATA_EXPERIMENTS, read_parque
 # ---------------------------------------------------------------------------
 COIN_WHITE = "#FFFFFF"
 MIDNIGHT = "#000000"
-WS_GOLD = "#FFB547"
+WS_GOLD = "#FFD100"      # RBC gold — accent for primary CTAs only
+RBC_NAVY = "#003168"    # RBC deep navy — primary brand colour
 SAGE_GREEN = "#E8F0E8"
 STONE_GREY = "#F2F2F2"
+
+# ---------------------------------------------------------------------------
+# Rationale display — split stored nudge text for case cards / detail panel
+# ---------------------------------------------------------------------------
+def split_composite_nudge_for_display(text: str | None) -> tuple[str, str | None, str | None]:
+    """
+    Split a hypothesis rationale string for UI: (main with optional **bold**, macro_plain, active_learning_plain).
+    Supports legacy blocks (**Behavioral Reason:** / **Macro Reason:** / **Active Learning:**) and the
+    ``Macro:`` / ``Active learning:`` paragraph format from ``generate_composite_reason``.
+    """
+    s = (text or "").strip()
+    if not s:
+        return "No rationale.", None, None
+
+    active: str | None = None
+    if "**Active Learning:**" in s:
+        s, _, tail = s.partition("**Active Learning:**")
+        active = tail.strip() or None
+    elif "\n\nActive learning:" in s:
+        s, _, tail = s.partition("\n\nActive learning:")
+        active = tail.strip() or None
+
+    macro: str | None = None
+    if "**Macro Reason:**" in s:
+        s, _, mblock = s.partition("**Macro Reason:**")
+        macro = (
+            " ".join(
+                re.sub(r"^[-•*]\s*", "", ln).strip()
+                for ln in mblock.splitlines()
+                if ln.strip()
+            )
+            or None
+        )
+    elif "\n\nMacro:" in s:
+        s, _, tail = s.partition("\n\nMacro:")
+        macro = tail.strip() or None
+
+    main = re.sub(r"(?is)\*\*behavioral reason:\*\*\s*", "", s).strip()
+    return main or "No rationale.", macro, active
+
 
 # ---------------------------------------------------------------------------
 # Display constants
@@ -466,22 +508,25 @@ def inject_ws_theme():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
         
-        /* Color system - calm, modern; red reserved for risk only */
+        /* Color system — RBC brand palette; navy primary; gold used sparingly */
         :root {{ 
+            --rbc-navy:  #003168;   /* RBC deep navy — sidebar, active nav, brand anchors */
+            --rbc-gold:  #FFD100;   /* RBC gold — sparing accents / onboarding highlights */
             --ws-midnight: #111;
             --ws-off-white: #fff;
-            --ws-bg: #f5f5f5;       /* Very light gray page background */
-            --ws-gold: {WS_GOLD}; 
-            --ws-sage: {SAGE_GREEN}; 
+            --ws-bg: #fff;
+            --ws-section-bg: #f5f5f5;
+            --ws-gold: {WS_GOLD};
+            --ws-sage: {SAGE_GREEN};
             --ws-stone: #e8e8e8;
-            --ws-radius: 18px;      /* Cards */
+            --ws-radius: 18px;
             --ws-radius-btn: 13px;
             --ws-radius-input: 12px;
-            --ws-red: #b91c1c;      /* Risk only - softer than before */
-            --ws-amber: #b45309;    /* Review - muted */
-            --ws-green: #047857;    /* Opportunity - calm green */
-            --ws-primary: {WS_GOLD};
-            --ws-muted: #6b7280;    /* Softer gray secondary */
+            --ws-red: #b91c1c;
+            --ws-amber: #b45309;
+            --ws-green: #047857;
+            --ws-primary: var(--rbc-navy);
+            --ws-muted: #6b7280;
             --ws-secondary: #4b5563;
             --ws-primary-text: #0f0f0f;
         }}
@@ -595,34 +640,46 @@ def inject_ws_theme():
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }}
         
-        /* Action Cards - white, no nested boxes; 24–32px spacing */
-        .ws-action-card {{ 
+        /* Action Cards — full border + tier accent (inset) + hover */
+        .ws-action-card {{
             background: var(--ws-off-white);
-            border: none;
+            border: 1px solid #e5e7eb;
             border-radius: var(--ws-radius);
             padding: 1.5rem 2rem;
             margin-bottom: 1rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            cursor: default;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         }}
-        
-        .ws-action-card.urgent {{ 
-            border-left: 3px solid var(--ws-red);
-            background: var(--ws-off-white);
+
+        .ws-action-card.urgent {{
+            border-color: #fecdd3;
+            box-shadow: inset 3px 0 0 0 var(--ws-red), 0 1px 2px rgba(0, 0, 0, 0.04);
         }}
-        
-        .ws-action-card.review {{ 
-            border-left: 3px solid var(--ws-amber);
-            background: var(--ws-off-white);
+
+        .ws-action-card.review {{
+            border-color: #fde68a;
+            box-shadow: inset 3px 0 0 0 var(--ws-amber), 0 1px 2px rgba(0, 0, 0, 0.04);
         }}
-        
-        .ws-action-card.opportunity {{ 
-            border-left: 3px solid var(--ws-green);
-            background: var(--ws-off-white);
+
+        .ws-action-card.opportunity {{
+            border-color: #bbf7d0;
+            box-shadow: inset 3px 0 0 0 var(--ws-green), 0 1px 2px rgba(0, 0, 0, 0.04);
         }}
-        
-        .ws-action-card:hover {{ 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+
+        .ws-action-card:hover {{
+            border-color: #d1d5db !important;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08) !important;
+            transform: translateY(-1px);
+        }}
+        .ws-action-card.urgent:hover {{
+            box-shadow: inset 3px 0 0 0 var(--ws-red), 0 12px 32px rgba(185, 28, 28, 0.12) !important;
+        }}
+        .ws-action-card.review:hover {{
+            box-shadow: inset 3px 0 0 0 var(--ws-amber), 0 12px 32px rgba(180, 83, 9, 0.1) !important;
+        }}
+        .ws-action-card.opportunity:hover {{
+            box-shadow: inset 3px 0 0 0 var(--ws-green), 0 12px 32px rgba(4, 120, 87, 0.1) !important;
         }}
         
         /* Badges - pills fully rounded */
@@ -657,9 +714,9 @@ def inject_ws_theme():
         }}
         
         .stButton > button[kind="primary"] {{ 
-            background-color: var(--ws-primary);
-            color: var(--ws-midnight);
-            border-color: var(--ws-primary);
+            background-color: var(--rbc-navy);
+            color: #fff;
+            border-color: var(--rbc-navy);
         }}
         
         /* Decision controls - no box, spacing only */
@@ -671,42 +728,144 @@ def inject_ws_theme():
             border: none;
         }}
         
-        /* Sidebar - light gray, 1px divider only */
+        /* Sidebar — RBC deep navy background */
         section[data-testid="stSidebar"] > div {{ 
-            background-color: var(--ws-bg);
-            border-right: 1px solid rgba(0,0,0,0.08);
+            background-color: var(--rbc-navy) !important;
+            border-right: none;
         }}
-        
+        /* Sidebar text links (page_link) */
+        section[data-testid="stSidebar"] a,
+        section[data-testid="stSidebar"] [data-testid="stPageLink"] p,
+        section[data-testid="stSidebar"] [data-testid="stPageLink"] span {{
+            color: rgba(255,255,255,0.9) !important;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stPageLink"]:hover p,
+        section[data-testid="stSidebar"] [data-testid="stPageLink"]:hover span {{
+            color: #fff !important;
+        }}
+        section[data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.12) !important; }}
+        section[data-testid="stSidebar"] .stExpander summary,
+        section[data-testid="stSidebar"] .stExpander p,
+        section[data-testid="stSidebar"] .stExpander span,
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] p {{
+            color: rgba(255,255,255,0.8) !important;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{
+            color: rgba(255,255,255,0.8) !important;
+        }}
+        section[data-testid="stSidebar"] button {{
+            color: rgba(255,255,255,0.85) !important;
+            background: transparent !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+        }}
+        section[data-testid="stSidebar"] button:hover {{
+            background: rgba(255,255,255,0.08) !important;
+            color: #fff !important;
+        }}
+
         .sidebar-nav {{ margin-bottom: 1rem; }}
-        
-        .nav-item {{ 
-            font-size: 0.95rem; 
-            padding: 0.75rem 1rem; 
-            margin: 0.25rem 0; 
-            border-radius: var(--ws-radius-btn); 
-            color: var(--ws-midnight);
-            font-weight: 500;
-            transition: all 0.15s ease;
-        }}
-        
-        .nav-active {{ 
-            background: var(--ws-primary);
-            color: var(--ws-midnight);
+
+        /* Nav label (current page): no per-cell border — row uses inset gold bar */
+        .nav-item {{
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            padding: 0.42rem 0.5rem 0.42rem 0.15rem;
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            color: rgba(255,255,255,0.9);
             font-weight: 600;
         }}
-        
+
+        .nav-item.nav-active {{
+            background: transparent;
+            color: #fff !important;
+            font-weight: 700;
+        }}
+
+        /* page_link current route: typography only (row handles gold accent) */
+        section[data-testid="stSidebar"] [data-testid="stPageLink"][aria-current="page"] p,
+        section[data-testid="stSidebar"] [data-testid="stPageLink"][aria-current="page"] span,
+        section[data-testid="stSidebar"] a[aria-current="page"] p,
+        section[data-testid="stSidebar"] a[aria-current="page"] span,
+        section[data-testid="stSidebar"] li[aria-current="page"] > a p,
+        section[data-testid="stSidebar"] li[aria-current="page"] > a span {{
+            color: #fff !important;
+            font-weight: 700 !important;
+        }}
+
+        /* Sidebar primary nav: icon + label rows — scope to .nav-sidebar-icon-wrap so Configure/Help stay untouched */
+        section[data-testid="stSidebar"] [data-testid="stElementContainer"]:has([data-testid="stHorizontalBlock"]:has(.nav-sidebar-icon-wrap)) {{
+            margin-top: 0.05rem !important;
+            margin-bottom: 0.5rem !important;
+            padding-top: 0.12rem !important;
+            padding-bottom: 0.12rem !important;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-sidebar-icon-wrap) {{
+            align-items: center !important;
+            gap: 0.35rem !important;
+            margin-bottom: 0 !important;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-sidebar-icon-wrap) > div:first-child {{
+            flex: 0 0 auto !important;
+            width: auto !important;
+            min-width: 1.75rem !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }}
+        .nav-sidebar-icon-wrap {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.72);
+            line-height: 0;
+        }}
+        .nav-sidebar-icon-wrap.is-active {{ color: #fff; }}
+        .nav-sidebar-icon-wrap svg {{ display: block; }}
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-sidebar-icon-wrap) [data-testid="stMarkdownContainer"] {{
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-sidebar-icon-wrap) [data-testid="stMarkdownContainer"] p {{
+            margin: 0 !important;
+            line-height: 1.4 !important;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-sidebar-icon-wrap) [data-testid="stPageLink"] p,
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-sidebar-icon-wrap) [data-testid="stPageLink"] span {{
+            padding-top: 0.38rem !important;
+            padding-bottom: 0.38rem !important;
+        }}
+
+        /* Full-row active accent (gold left) when this row is current */
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-item.nav-active),
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"][aria-current="page"]),
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(li[aria-current="page"]) {{
+            box-shadow: inset 4px 0 0 var(--rbc-gold);
+            background: rgba(255,255,255,0.08);
+            border-radius: 0 var(--ws-radius-btn) var(--ws-radius-btn) 0;
+            padding: 0.22rem 0 0.22rem 0.25rem;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.nav-item.nav-active) .nav-item.nav-active,
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"][aria-current="page"]) [data-testid="stPageLink"],
+        section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(li[aria-current="page"]) a {{
+            border-left: none !important;
+            background: transparent !important;
+        }}
+
         .sidebar-section {{ 
             font-size: 0.7rem; 
             text-transform: uppercase; 
-            letter-spacing: 0.05em; 
-            color: var(--ws-muted); 
+            letter-spacing: 0.06em; 
+            color: rgba(255,255,255,0.45);
             margin: 1.5rem 0 0.5rem 0;
             font-weight: 600;
         }}
-        
+
         .sidebar-context {{ 
             font-size: 0.8rem; 
-            color: var(--ws-muted); 
+            color: rgba(255,255,255,0.65);
             margin: 0.5rem 0; 
             line-height: 1.4;
         }}
@@ -769,32 +928,115 @@ def inject_ws_theme():
         }}
         .ws-secondary {{ margin-bottom: 0.1rem !important; color: #262626 !important; }}
         .ws-divider {{ margin: 0.6rem 0 !important; }}
-        .ws-section-header {{ margin-top: 0.25rem !important; margin-bottom: 0.3rem !important; color: #0f0f0f !important; }}
+        .ws-section-header.ws-section-header--action-stack {{
+            margin-top: 0.35rem !important;
+            margin-bottom: 0.35rem !important;
+        }}
         /* Darker font for captions and text inside main content (white box) */
         [data-testid="block-container"] [data-testid="stCaption"], [data-testid="block-container"] p, [data-testid="block-container"] .stMarkdown {{ color: #0f0f0f !important; }}
         
-        /* PART 2: Audit Status — white box like View Details panel */
+        /* PART 2: Audit Status — trust strip (Decision Console) + client snapshot row */
         .ws-audit-status-row {{
-            display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 1rem;
-            background: var(--ws-off-white); border-radius: var(--ws-radius); padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+            background: var(--ws-off-white);
+            border-radius: var(--ws-radius);
+            padding: 1rem 1.25rem;
         }}
-        .ws-audit-kpi {{ display: flex; flex-direction: column; gap: 0.15rem; }}
-        .ws-audit-kpi-label {{ font-size: 0.7rem; color: #374151; text-transform: uppercase; }}
-        .ws-audit-kpi-value {{ font-weight: 600; font-size: 0.9rem; color: #0f0f0f; }}
+        .ws-audit-status-row.ws-audit-status--system {{
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            column-gap: 1rem;
+            row-gap: 0.5rem;
+            align-items: start;
+        }}
+        .ws-audit-status-row.ws-client-snapshot {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem 1.25rem;
+            align-items: flex-start;
+        }}
+        .ws-audit-status-row.ws-audit-status--system .ws-audit-kpi {{
+            min-width: 0;
+        }}
+        .ws-audit-kpi {{ display: flex; flex-direction: column; gap: 0.2rem; }}
+        .ws-audit-kpi-label {{
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            line-height: 1.2;
+        }}
+        .ws-audit-kpi-value {{
+            font-weight: 600;
+            font-size: 0.875rem;
+            line-height: 1.25;
+            color: #0f0f0f;
+        }}
+        /* Compliance badge: same cap height as numeric KPI values (not taller pill) */
+        .ws-audit-kpi-value--badge {{
+            display: inline-flex;
+            align-items: center;
+            min-height: 1.25rem;
+        }}
+        .ws-audit-status-row.ws-audit-status--system .ws-audit-kpi-value--badge .ws-badge {{
+            padding: 0.12rem 0.45rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1.2;
+            letter-spacing: 0.04em;
+            border-radius: 6px;
+        }}
+        @media (max-width: 1024px) {{
+            .ws-audit-status-row.ws-audit-status--system {{
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }}
+        }}
+        @media (max-width: 560px) {{
+            .ws-audit-status-row.ws-audit-status--system {{
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }}
+        }}
         
-        /* Case Queue — pure white card: BorderWrapper + all inner blocks forced to #fff */
+        /* Case Queue — full bordered cards, tier accent via inset bar + hover */
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red),
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber),
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{
             background: #fff !important;
             border: 1px solid #e5e7eb !important;
-            border-left-width: 3px !important;
-            border-left-color: #e5e7eb !important;
             border-radius: var(--ws-radius) !important;
             margin-bottom: 1rem !important;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
             padding: 1.5rem 2rem !important;
             color: #000 !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) {{
+            border-color: #fecdd3 !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-red), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) {{
+            border-color: #fde68a !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-amber), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{
+            border-color: #bbf7d0 !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-green), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red):hover,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber):hover,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green):hover {{
+            border-color: #d1d5db !important;
+            transform: translateY(-1px);
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red):hover {{
+            box-shadow: inset 3px 0 0 0 var(--ws-red), 0 12px 32px rgba(185, 28, 28, 0.12) !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber):hover {{
+            box-shadow: inset 3px 0 0 0 var(--ws-amber), 0 12px 32px rgba(180, 83, 9, 0.1) !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green):hover {{
+            box-shadow: inset 3px 0 0 0 var(--ws-green), 0 12px 32px rgba(4, 120, 87, 0.1) !important;
         }}
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stVerticalBlock"],
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stVerticalBlock"],
@@ -827,13 +1069,59 @@ def inject_ws_theme():
         [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) .stMarkdown {{
             color: #000 !important;
         }}
-        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) {{ border-left-color: var(--ws-red) !important; border-left-width: 3px !important; }}
-        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) {{ border-left-color: var(--ws-amber) !important; border-left-width: 3px !important; }}
-        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-green) {{ border-left-color: var(--ws-green) !important; border-left-width: 3px !important; }}
         .cc-tier-red, .cc-tier-amber, .cc-tier-green {{ display: none !important; }}
         /* Case card text: force black so Streamlit caption override doesn't win */
         .cc-card-text {{ color: #000 !important; font-size: 0.875rem; line-height: 1.5; }}
         .cc-card-text strong {{ color: #000 !important; }}
+        .cc-card-rationale-secondary {{ color: #6b7280 !important; font-size: 0.8125rem !important; line-height: 1.45 !important; margin: 0.35rem 0 0 0 !important; }}
+        .cc-rationale-md {{ font-size: 0.875rem; color: #111; line-height: 1.5; }}
+        .cc-rationale-md strong {{ color: #111 !important; font-weight: 700 !important; }}
+        .cc-rationale-callout {{ background: #f8f8f8; border-left: 4px solid var(--rbc-gold); padding: 0.75rem 1rem; border-radius: 4px; margin-bottom: 1rem; }}
+        .cc-rationale-callout .cc-card-rationale-secondary {{ margin-top: 0.4rem !important; }}
+        /* Case card — decision strip: divider + bounded panel; Reject outlined to match Approve */
+        .cc-card-actions-divider {{
+            height: 1px;
+            margin: 0.55rem 0 0.45rem 0;
+            background: linear-gradient(90deg, transparent 0%, #e5e7eb 12%, #e5e7eb 88%, transparent 100%);
+        }}
+        .cc-decision-actions {{ margin: 0 0 0.35rem 0; }}
+        .cc-decision-actions-label {{
+            display: block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6b7280;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions),
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions) {{
+            border: 1px solid #e5e7eb !important;
+            border-radius: var(--ws-radius-btn) !important;
+            background: #f9fafb !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions) [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions) [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button {{
+            background: #fff !important;
+            color: var(--rbc-navy) !important;
+            border: 1.5px solid var(--rbc-navy) !important;
+            font-weight: 600 !important;
+            min-height: 2.5rem !important;
+            border-radius: var(--ws-radius-btn) !important;
+            box-shadow: none !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions) [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button:hover,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions) [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button:hover {{
+            background: rgba(0, 49, 104, 0.06) !important;
+            border-color: #00255a !important;
+            color: #00255a !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-red) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions) [data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-tier-amber) [data-testid="stVerticalBlockBorderWrapper"]:has(.cc-decision-actions) [data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button {{
+            min-height: 2.5rem !important;
+            border-radius: var(--ws-radius-btn) !important;
+            font-weight: 600 !important;
+        }}
         .tier-segment {{ 
             display: inline-flex; border-radius: var(--ws-radius-btn); padding: 2px; 
             background: var(--ws-stone); gap: 2px;
@@ -843,16 +1131,69 @@ def inject_ws_theme():
             border: none; cursor: pointer; background: transparent;
         }}
         .tier-segment-btn.active {{ background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }}
-        /* Case Queue: non-selected tier buttons = off-white, 12–14px radius */
-        div:has(> .ws-tier-segment-row[data-current-tier="red"]) + [data-testid="stHorizontalBlock"] > div:nth-child(2) button,
-        div:has(> .ws-tier-segment-row[data-current-tier="red"]) + [data-testid="stHorizontalBlock"] > div:nth-child(3) button,
-        div:has(> .ws-tier-segment-row[data-current-tier="amber"]) + [data-testid="stHorizontalBlock"] > div:nth-child(1) button,
-        div:has(> .ws-tier-segment-row[data-current-tier="amber"]) + [data-testid="stHorizontalBlock"] > div:nth-child(3) button,
-        div:has(> .ws-tier-segment-row[data-current-tier="green"]) + [data-testid="stHorizontalBlock"] > div:nth-child(1) button,
-        div:has(> .ws-tier-segment-row[data-current-tier="green"]) + [data-testid="stHorizontalBlock"] > div:nth-child(2) button {{
-            background: #f5f5f5 !important;
-            border: none !important;
+        /* Case Queue tier tabs — uniform pills; active = navy fill, inactive = ghost outline (emoji = tier dot) */
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] .stButton > button {{
             border-radius: var(--ws-radius-btn) !important;
+            min-height: 2.5rem !important;
+            padding: 0.5rem 0.65rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 600 !important;
+            line-height: 1.25 !important;
+            border: 1.5px solid rgba(0, 49, 104, 0.35) !important;
+            background: #fff !important;
+            color: var(--rbc-navy) !important;
+            box-shadow: none !important;
+        }}
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] .stButton > button:hover {{
+            background: rgba(0, 49, 104, 0.06) !important;
+            border-color: rgba(0, 49, 104, 0.55) !important;
+            color: var(--rbc-navy) !important;
+        }}
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row[data-current-tier="red"]) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button,
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row[data-current-tier="amber"]) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row[data-current-tier="green"]) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:nth-child(3) .stButton > button {{
+            background: var(--rbc-navy) !important;
+            color: #fff !important;
+            border-color: var(--rbc-navy) !important;
+        }}
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row[data-current-tier="red"]) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button:hover,
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row[data-current-tier="amber"]) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button:hover,
+        [data-testid="stElementContainer"]:has(.ws-tier-segment-row[data-current-tier="green"]) + [data-testid="stElementContainer"] [data-testid="stHorizontalBlock"] > div:nth-child(3) .stButton > button:hover {{
+            background: #00255a !important;
+            border-color: #00255a !important;
+            color: #fff !important;
+        }}
+        /* Fallback if tier marker and columns are direct siblings without element-container wrap */
+        div:has(> .ws-tier-segment-row) + [data-testid="stHorizontalBlock"] .stButton > button {{
+            border-radius: var(--ws-radius-btn) !important;
+            min-height: 2.5rem !important;
+            padding: 0.5rem 0.65rem !important;
+            font-size: 0.875rem !important;
+            font-weight: 600 !important;
+            line-height: 1.25 !important;
+            border: 1.5px solid rgba(0, 49, 104, 0.35) !important;
+            background: #fff !important;
+            color: var(--rbc-navy) !important;
+            box-shadow: none !important;
+        }}
+        div:has(> .ws-tier-segment-row) + [data-testid="stHorizontalBlock"] .stButton > button:hover {{
+            background: rgba(0, 49, 104, 0.06) !important;
+            border-color: rgba(0, 49, 104, 0.55) !important;
+            color: var(--rbc-navy) !important;
+        }}
+        div:has(> .ws-tier-segment-row[data-current-tier="red"]) + [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button,
+        div:has(> .ws-tier-segment-row[data-current-tier="amber"]) + [data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
+        div:has(> .ws-tier-segment-row[data-current-tier="green"]) + [data-testid="stHorizontalBlock"] > div:nth-child(3) .stButton > button {{
+            background: var(--rbc-navy) !important;
+            color: #fff !important;
+            border-color: var(--rbc-navy) !important;
+        }}
+        div:has(> .ws-tier-segment-row[data-current-tier="red"]) + [data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton > button:hover,
+        div:has(> .ws-tier-segment-row[data-current-tier="amber"]) + [data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button:hover,
+        div:has(> .ws-tier-segment-row[data-current-tier="green"]) + [data-testid="stHorizontalBlock"] > div:nth-child(3) .stButton > button:hover {{
+            background: #00255a !important;
+            border-color: #00255a !important;
+            color: #fff !important;
         }}
         .queue-progress {{ font-size: 0.85rem; color: var(--ws-muted); margin-bottom: 0.75rem; }}
 
@@ -985,33 +1326,158 @@ def inject_ws_theme():
         .adb-decision-footer .adb-override-badge {{ display: inline-block; padding: 0.25rem 0.5rem; border-radius: 999px; font-size: 13px; font-weight: 600; background: #e0f2fe; color: #0369a1; border: none; margin-bottom: 0.5rem; }}
         .adb-raw-drawer {{ margin-top: 0.5rem; }}
         
-        /* Action Stack: 1px left accent only, white card, 18px radius, 24–32px spacing */
+        /* Action Stack rows — padding + supporting line */
+        .ws-action-stack-row {{
+            padding: 0.45rem 0.85rem;
+            box-sizing: border-box;
+        }}
+        .ws-action-stack-desc {{
+            font-size: 0.875rem;
+            line-height: 1.28;
+            color: #64748b;
+            margin: 0.12rem 0 0 0;
+        }}
+        /* Shared metric pattern: muted label (small caps) → bold value */
+        .ws-metric-stack {{
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.1rem;
+            min-width: 0;
+        }}
+        .ws-metric-stack--tight {{ gap: 0.06rem; }}
+        .ws-metric-lbl {{
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            line-height: 1.2;
+        }}
+        .ws-metric-val {{
+            font-size: 1.1875rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }}
+        .ws-metric-stack--sm .ws-metric-val {{ font-size: 1.05rem; }}
+        .ws-action-stack-row .ws-metric-stack {{ margin-bottom: 0.2rem; }}
+        /* Control Center header — status chips (filled pills) */
+        .ws-summary-chip-row {{
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.45rem;
+            margin-bottom: 0.5rem;
+            padding: 0.2rem 0 0.35rem 0;
+        }}
+        .ws-summary-chip {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.42rem 0.9rem;
+            border-radius: 999px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            line-height: 1.15;
+            max-width: 100%;
+            box-sizing: border-box;
+        }}
+        .ws-summary-chip-num {{
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            font-size: 0.9375rem;
+        }}
+        .ws-summary-chip-text {{
+            font-weight: 600;
+            opacity: 0.96;
+            white-space: nowrap;
+        }}
+        .ws-summary-chip--navy {{
+            background: var(--rbc-navy);
+            color: #fff;
+            box-shadow: 0 1px 4px rgba(0, 49, 104, 0.28);
+        }}
+        .ws-summary-chip--navy .ws-summary-chip-num {{ font-size: 1rem; }}
+        .ws-summary-chip--amber {{
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            box-shadow: 0 1px 2px rgba(180, 83, 9, 0.12);
+        }}
+        .ws-summary-chip--amber .ws-summary-chip-num {{ color: #78350f; }}
+        .ws-summary-chip--green {{
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+            box-shadow: 0 1px 2px rgba(4, 120, 87, 0.12);
+        }}
+        .ws-summary-chip--green .ws-summary-chip-num {{ color: #047857; }}
+        .ws-summary-chip--slate {{
+            background: #f1f5f9;
+            color: #0f172a;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }}
+        .ws-summary-chip--slate .ws-summary-chip-num {{ font-size: 0.8125rem; font-weight: 800; color: #0f172a; }}
+        .ws-queue-metric-row {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.25rem 2rem;
+            align-items: flex-end;
+            margin: 0.15rem 0 0.35rem 0;
+        }}
+        .ws-impact-metric-row {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem 2.25rem;
+            align-items: flex-end;
+            padding: 0.45rem 0.85rem;
+        }}
+        .ws-impact-metric-row + .ws-impact-footnote {{ margin-top: 0.15rem; padding: 0 0.85rem 0.35rem; }}
+
+        /* Action Stack — full bordered rows, inset tier accent, subtle hover */
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk),
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch),
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth) {{
             gap: 0 !important;
-            margin-bottom: 1rem !important;
+            margin-bottom: 0.45rem !important;
             box-sizing: border-box !important;
+            border: 1px solid #e5e7eb !important;
+            border-radius: var(--ws-radius) !important;
+            background: #fff !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease !important;
+            align-items: stretch !important;
         }}
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) {{
-            border: none !important;
-            border-left: 3px solid var(--ws-red) !important;
-            background: var(--ws-off-white) !important;
-            border-radius: var(--ws-radius) !important;
-            align-items: stretch !important;
-            min-height: 2.75rem;
+            border-color: #fecdd3 !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-red), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            min-height: 2.35rem;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk):hover {{
+            border-color: #d1d5db !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-red), 0 12px 32px rgba(185, 28, 28, 0.12) !important;
+            transform: translateY(-1px);
         }}
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch) {{
-            border: none !important;
-            border-left: 3px solid var(--ws-amber) !important;
-            background: var(--ws-off-white) !important;
-            border-radius: var(--ws-radius) !important;
+            border-color: #fde68a !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-amber), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-batch):hover {{
+            border-color: #d1d5db !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-amber), 0 12px 32px rgba(180, 83, 9, 0.1) !important;
+            transform: translateY(-1px);
         }}
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth) {{
-            border: none !important;
-            border-left: 3px solid var(--ws-green) !important;
-            background: var(--ws-off-white) !important;
-            border-radius: var(--ws-radius) !important;
+            border-color: #bbf7d0 !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-green), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-action-card-growth):hover {{
+            border-color: #d1d5db !important;
+            box-shadow: inset 3px 0 0 0 var(--ws-green), 0 12px 32px rgba(4, 120, 87, 0.1) !important;
+            transform: translateY(-1px);
         }}
         /* Right column: right-align the button container (stElementContainer) in its parent (stVerticalBlock) */
         [data-testid="stHorizontalBlock"]:has(.ws-action-card-highrisk) > div:last-child,
@@ -1052,62 +1518,105 @@ def inject_ws_theme():
             box-sizing: border-box;
         }}
         
-        /* Status strip — no box, 1px divider feel; degraded = subtle tint only */
+        /* Status strip — soft navy-blue info tint; degraded = stronger left-border accent */
         .ws-status-strip {{
             font-size: 0.75rem;
-            color: var(--ws-muted);
-            padding: 0.5rem 0;
+            color: #1e3a5f;
+            padding: 0.45rem 0.85rem;
             margin-bottom: 0.75rem;
             line-height: 1.5;
-        }}
-        .ws-status-strip .sep {{ color: rgba(0,0,0,0.12); }}
-        .ws-status-strip.degraded {{
-            background: #fffbeb;
-            border: none;
+            background: #dce8f5;
             border-radius: var(--ws-radius);
-            color: #92400e;
+            border-left: 3px solid var(--rbc-navy);
+        }}
+        .ws-status-strip .sep {{ color: rgba(0,49,104,0.22); }}
+        .ws-status-strip.degraded {{
+            background: #c8d9f0;
+            border-left: 3px solid #b91c1c;
+            border-radius: var(--ws-radius);
+            color: #0f2545;
             padding: 0.5rem 1rem;
-            font-weight: 500;
+            font-weight: 600;
         }}
         
         /* Inputs: 12px radius */
         [data-testid="stTextInput"] input, [data-testid="stSelectbox"] div, .stSelectbox > div {{ border-radius: var(--ws-radius-input) !important; }}
         
-        /* Severity-based button overrides - red only for true risk */
-        .btn-urgent .stButton > button, .btn-review-red .stButton > button {{
-            background: var(--ws-red) !important; color: white !important;
-            border: none !important; font-weight: 600;
-            border-radius: var(--ws-radius-btn) !important;
-        }}
-        .btn-urgent .stButton > button:hover {{
-            background: #b91c1c !important; border-color: #b91c1c !important;
-        }}
-        .btn-amber .stButton > button {{
-            background: transparent !important; color: #92400e !important;
-            border: 1.5px solid #d97706 !important; font-weight: 600;
-        }}
-        .btn-amber .stButton > button:hover {{ background: #FFFBEB !important; }}
+        /* Action Stack CTAs — solid RBC navy, white text (Review, Approve, Inspect) */
+        .btn-urgent .stButton > button,
+        .btn-review-red .stButton > button,
+        .btn-amber .stButton > button,
         .btn-growth .stButton > button {{
-            background: transparent !important; color: #15803d !important;
-            border: 1.5px solid #16a34a !important; font-weight: 600;
+            background: var(--rbc-navy) !important;
+            color: #fff !important;
+            border: none !important;
+            font-weight: 700;
+            border-radius: var(--ws-radius-btn) !important;
+            box-shadow: 0 2px 8px rgba(0, 49, 104, 0.22);
         }}
-        .btn-growth .stButton > button:hover {{ background: #F0FDF4 !important; }}
+        .btn-urgent .stButton > button:hover,
+        .btn-review-red .stButton > button:hover,
+        .btn-amber .stButton > button:hover,
+        .btn-growth .stButton > button:hover {{
+            background: #00255a !important;
+            box-shadow: 0 4px 12px rgba(0, 49, 104, 0.28);
+        }}
+        .btn-urgent .stButton > button:disabled,
+        .btn-review-red .stButton > button:disabled,
+        .btn-amber .stButton > button:disabled,
+        .btn-growth .stButton > button:disabled {{
+            background: #94a3b8 !important;
+            color: #f1f5f9 !important;
+            box-shadow: none !important;
+            opacity: 0.85;
+        }}
+        /* Muted/secondary link buttons */
         .btn-muted .stButton > button {{
-            background: transparent !important; color: var(--ws-muted) !important;
-            border: 1px solid rgba(0,0,0,0.1) !important; font-weight: 500;
+            background: transparent !important;
+            color: var(--ws-muted) !important;
+            border: 1px solid rgba(0,0,0,0.1) !important;
+            font-weight: 500;
             font-size: 0.8rem !important;
             border-radius: var(--ws-radius-btn) !important;
         }}
         .btn-muted .stButton > button:hover {{
             background: #f3f4f6 !important;
         }}
-        /* Impact row: white card, no inner border, 18px radius */
+        /* Suppress Streamlit's default orange on generic primary buttons */
+        .stButton > button[kind="primary"] {{
+            background-color: var(--rbc-navy) !important;
+            color: #fff !important;
+            border-color: var(--rbc-navy) !important;
+        }}
+        .stButton > button[kind="primary"]:hover {{
+            background-color: #00255a !important;
+            border-color: #00255a !important;
+        }}
+        /* Streamlit widget accent overrides (sliders, toggles, progress) */
+        [data-baseweb="slider"] [data-testid="stThumbValue"],
+        [data-baseweb="slider"] div[role="slider"] {{
+            background: var(--rbc-navy) !important;
+            border-color: var(--rbc-navy) !important;
+        }}
+        [data-baseweb="slider"] div[class*="Track"] > div {{
+            background: var(--rbc-navy) !important;
+        }}
+        [data-testid="stProgressBar"] > div {{ background: var(--rbc-navy) !important; }}
+        [data-testid="stToggle"] input:checked + div {{ background: var(--rbc-navy) !important; }}
+        /* Impact row — full border + hover */
         [data-testid="stHorizontalBlock"]:has(.ws-impact-card) {{
-            background: var(--ws-off-white) !important;
+            background: #fff !important;
+            border: 1px solid #e5e7eb !important;
             border-radius: var(--ws-radius) !important;
             margin-bottom: 1rem !important;
             align-items: center !important;
-            border: none !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease !important;
+        }}
+        [data-testid="stHorizontalBlock"]:has(.ws-impact-card):hover {{
+            border-color: #d1d5db !important;
+            box-shadow: 0 10px 28px rgba(0, 49, 104, 0.1) !important;
+            transform: translateY(-1px);
         }}
         [data-testid="stHorizontalBlock"]:has(.ws-impact-card) > div:first-child {{
             display: flex !important;
@@ -1115,8 +1624,19 @@ def inject_ws_theme():
         }}
         [data-testid="stHorizontalBlock"]:has(.ws-impact-card) > div:first-child [data-testid="stVerticalBlock"] {{
             display: flex !important;
-            justify-content: center !important;
+            justify-content: flex-start !important;
+            align-items: center !important;
             gap: 0 !important;
+            width: 100% !important;
+        }}
+        .ws-impact-card {{
+            width: 100%;
+            box-sizing: border-box;
+        }}
+        .ws-action-stack-row .ws-metric-val {{
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            max-width: 100%;
         }}
         /* Impact row: right-align the Growth Engine CTA */
         [data-testid="stHorizontalBlock"]:has(.btn-muted) > div:last-child {{
@@ -1137,23 +1657,23 @@ def inject_ws_theme():
         
         /* Tighter vertical rhythm (overrides applied per-page via scoped rules above) */
         
-        /* Compact KPI row — horizontal, under actions */
+        /* Compact KPI row — same label→value hierarchy as System Metrics */
         .ws-kpi-compact {{
             display: flex !important;
             flex-direction: row !important;
             gap: 2rem;
             flex-wrap: wrap;
-            align-items: flex-start;
+            align-items: flex-end;
             padding: 0.6rem 0;
         }}
         .ws-kpi-compact-item {{
             display: inline-flex !important;
             flex-direction: column;
             gap: 0.1rem;
-            min-width: 80px;
+            min-width: 5.5rem;
         }}
-        .ws-kpi-compact-item .val {{ font-size: 1.1rem; font-weight: 700; color: var(--ws-midnight); }}
-        .ws-kpi-compact-item .lbl {{ font-size: 0.7rem; color: var(--ws-muted); text-transform: uppercase; }}
+        .ws-kpi-compact-item .ws-metric-val {{ font-size: 1.2rem; }}
+        .ws-kpi-compact-item .ws-metric-lbl {{ font-size: 0.6875rem; }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -1233,6 +1753,49 @@ def render_action_card(title: str, subtitle: str, action_text: str, urgency: str
     
     # Return True if clicked
     return st.button(f"Execute: {action_text}", key=key, use_container_width=True, type="primary")
+
+
+def metric_stack_html(label: str, value: str, *, extra_class: str = "") -> str:
+    """Muted label above bold metric (shared with System Metrics / Control Center)."""
+    def _esc(s: str) -> str:
+        return (
+            str(s)
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+        )
+
+    extra = f" {extra_class.strip()}" if extra_class and extra_class.strip() else ""
+    return (
+        f'<div class="ws-metric-stack{extra}">'
+        f'<span class="ws-metric-lbl">{_esc(label)}</span>'
+        f'<span class="ws-metric-val">{_esc(value)}</span>'
+        f"</div>"
+    )
+
+
+def summary_status_chip_html(value: str, label: str, *, variant: str = "navy") -> str:
+    """Filled pill for header status bar: bold count + label (e.g. 168 High-Risk, navy)."""
+    allowed = frozenset({"navy", "amber", "green", "slate"})
+    vkey = variant if variant in allowed else "navy"
+
+    def _esc(s: str) -> str:
+        return (
+            str(s)
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+        )
+
+    aria = f"{_esc(value)} {_esc(label)}"
+    return (
+        f'<span class="ws-summary-chip ws-summary-chip--{vkey}" role="status" aria-label="{aria}">'
+        f'<strong class="ws-summary-chip-num">{_esc(value)}</strong>'
+        f'<span class="ws-summary-chip-text">{_esc(label)}</span>'
+        f"</span>"
+    )
 
 
 def render_governance_badge(tier: str) -> str:
@@ -1798,13 +2361,13 @@ def render_audit_status():
     override_pct = compliance["override_rate_30d"]  # already a number like 10.7
     st.markdown('<div class="ws-subsection" style="margin-bottom: 0.5rem;">Audit Status</div>', unsafe_allow_html=True)
     st.markdown(f"""
-    <div class="ws-audit-status-row">
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Decision Logging</span><span class="ws-audit-kpi-value">100%</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Retention</span><span class="ws-audit-kpi-value">{compliance["data_retention_days"]} days</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Override Rate (30d)</span><span class="ws-audit-kpi-value">{override_pct:.1f}%</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Compliance</span><span class="ws-badge {badge_class}">{status}</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Last Export</span><span class="ws-audit-kpi-value">{compliance["last_export"]}</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Next Audit</span><span class="ws-audit-kpi-value">{compliance["next_audit_due"]}</span></div>
+    <div class="ws-audit-status-row ws-audit-status--system">
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Decision logging</span><span class="ws-audit-kpi-value">100%</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Data retention</span><span class="ws-audit-kpi-value">{compliance["data_retention_days"]} days</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Override rate (30d)</span><span class="ws-audit-kpi-value">{override_pct:.1f}%</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Compliance</span><span class="ws-audit-kpi-value ws-audit-kpi-value--badge"><span class="ws-badge {badge_class}">{status}</span></span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Last export</span><span class="ws-audit-kpi-value">{compliance["last_export"]}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Next audit</span><span class="ws-audit-kpi-value">{compliance["next_audit_due"]}</span></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1844,12 +2407,12 @@ def render_client_snapshot(hypothesis: dict, features: pd.DataFrame = None, last
     <div class="ws-audit-status-row ws-client-snapshot">
         <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Persona</span><span class="ws-audit-kpi-value">{persona}</span></div>
         <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">AUA</span><span class="ws-audit-kpi-value">{aua_val}</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Active Signal</span><span class="ws-audit-kpi-value">{signal}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Active signal</span><span class="ws-audit-kpi-value">{signal}</span></div>
         <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Confidence</span><span class="ws-audit-kpi-value">{conf_str}</span></div>
         <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Governance</span><span class="ws-audit-kpi-value">{gov_icon} {gov_label}</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Projected Impact</span><span class="ws-audit-kpi-value">{projected}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Projected impact</span><span class="ws-audit-kpi-value">{projected}</span></div>
         <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Liquidity</span><span class="ws-audit-kpi-value">{liquidity}</span></div>
-        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Last Reviewed</span><span class="ws-audit-kpi-value">{last_rev}</span></div>
+        <div class="ws-audit-kpi"><span class="ws-audit-kpi-label">Last reviewed</span><span class="ws-audit-kpi-value">{last_rev}</span></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2140,6 +2703,47 @@ def get_model_reliability_table(artifacts: dict, precision_target: float = 0.80)
 # ---------------------------------------------------------------------------
 # Shared command-console sidebar (Command Layer → Execution → Intelligence)
 # ---------------------------------------------------------------------------
+# Subtle inline SVGs (currentColor) for nav rows — gauge, queue, growth, shield
+NAV_ICON_SVGS: dict[str, str] = {
+    "control": (
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" '
+        'aria-hidden="true"><path d="M3.5 17.5a8.5 8.5 0 0 1 17 0" stroke="currentColor" '
+        'stroke-width="1.35" stroke-linecap="round" opacity="0.5"/><path d="M12 9.5V14" stroke="currentColor" '
+        'stroke-width="1.65" stroke-linecap="round"/><circle cx="12" cy="16.2" r="1.15" fill="currentColor" '
+        'opacity="0.45"/></svg>'
+    ),
+    "decision": (
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" '
+        'aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" '
+        'stroke-width="1.25" fill="none" opacity="0.38"/><path d="M8.5 9.5h7M8.5 12.5h5M8.5 15.5h6" '
+        'stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/>'
+        '<path d="M9 12l1.5 1.5L13 10" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" '
+        'stroke-linejoin="round"/></svg>'
+    ),
+    "growth": (
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" '
+        'aria-hidden="true"><path d="M4 19h16" stroke="currentColor" stroke-width="1.25" '
+        'stroke-linecap="round" opacity="0.35"/><path d="M6 16l4-5 3 3 5-7" stroke="currentColor" '
+        'stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>'
+        '<path d="M16 7h3v3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" '
+        'stroke-linejoin="round" opacity="0.45"/></svg>'
+    ),
+    "compliance": (
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" '
+        'aria-hidden="true"><path d="M12 3.2 19.5 6.2c0 5.2-2.8 9.9-7.5 11.6C7.3 16.1 4.5 11.4 4.5 6.2L12 3.2z" '
+        'stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" fill="none" opacity="0.55"/>'
+        '<path d="M12 8.5v5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>'
+        '<circle cx="12" cy="16" r="0.9" fill="currentColor" opacity="0.5"/></svg>'
+    ),
+}
+
+
+def _sidebar_nav_icon_html(page_id: str, *, active: bool) -> str:
+    svg = NAV_ICON_SVGS.get(page_id, NAV_ICON_SVGS["control"])
+    cls = "nav-sidebar-icon-wrap" + (" is-active" if active else "")
+    return f'<div class="{cls}">{svg}</div>'
+
+
 NAV_PAGES = [
     ("control", "Control Center", "app.py"),
     ("decision", "Decision Console", "pages/1_decision_console.py"),
@@ -2159,17 +2763,25 @@ def render_pulse_sidebar(current_page: str):
     sb = st.sidebar
     macro = st.session_state.macro
 
-    # ----- Primary Navigation (top, high emphasis) -----
+    # ----- Primary Navigation (top, high emphasis): icon + label rows -----
     sb.markdown('<div class="sidebar-nav">', unsafe_allow_html=True)
     for page_id, label, path in NAV_PAGES:
-        if page_id == current_page:
-            sb.markdown(f'<div class="nav-item nav-active">{label}</div>', unsafe_allow_html=True)
-        else:
-            try:
-                sb.page_link(path, label=label)
-            except Exception:
-                if sb.button(label, key=f"nav_{page_id}"):
-                    st.switch_page(path)
+        is_active = page_id == current_page
+        icon_html = _sidebar_nav_icon_html(page_id, active=is_active)
+        c_icon, c_label = sb.columns([1, 5])
+        with c_icon:
+            st.markdown(icon_html, unsafe_allow_html=True)
+        with c_label:
+            if is_active:
+                st.markdown(f'<div class="nav-item nav-active">{label}</div>', unsafe_allow_html=True)
+            else:
+                try:
+                    st.page_link(path, label=label, use_container_width=True)
+                except TypeError:
+                    st.page_link(path, label=label)
+                except Exception:
+                    if st.button(label, key=f"nav_{page_id}", use_container_width=True):
+                        st.switch_page(path)
     sb.markdown("</div>", unsafe_allow_html=True)
     sb.markdown("---")
 

@@ -106,15 +106,15 @@ def generate_composite_reason(
 ) -> str:
     """
     Combine behavioral nudge, macro reasons, and feedback loop reason
-    into a single traceable rationale block.
+    into one narrative block: main text may use **bold**; macro and active
+    learning are plain follow-on paragraphs (no section headings or bullets).
     """
-    parts = [f"**Behavioral Reason:**\n{behavioral_nudge}"]
-
+    parts = [behavioral_nudge.strip()]
     if macro_reasons:
-        macro_text = "\n".join(f"- {r}" for r in macro_reasons)
-        parts.append(f"**Macro Reason:**\n{macro_text}")
-
-    if feedback_reason:
-        parts.append(f"**Active Learning:**\n{feedback_reason}")
-
+        cleaned = [str(r).strip() for r in macro_reasons if r and str(r).strip()]
+        if cleaned:
+            parts.append("Macro: " + "; ".join(cleaned))
+    if feedback_reason and str(feedback_reason).strip():
+        parts.append("Active learning: " + str(feedback_reason).strip())
     return "\n\n".join(parts)
+

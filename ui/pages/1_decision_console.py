@@ -15,6 +15,7 @@ if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 
 from datetime import datetime, timezone
+import html
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -28,6 +29,8 @@ except ImportError:
         """Fallback if deployed version lacks this function."""
         return []
 import ui.lib as _ui_lib
+
+split_composite_nudge_for_display = _ui_lib.split_composite_nudge_for_display
 
 TIER_LABELS = _ui_lib.TIER_LABELS
 SIGNAL_LABELS = _ui_lib.SIGNAL_LABELS
@@ -105,6 +108,28 @@ def _cc_esc(s: str) -> str:
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+def _md_bold_segments_to_html(text: str) -> str:
+    """Escape HTML, then turn **segments** into <strong> (no other markdown)."""
+    parts = (text or "").split("**")
+    chunks: list[str] = []
+    for i, seg in enumerate(parts):
+        esc = html.escape(seg)
+        if i % 2 == 1:
+            chunks.append(f"<strong>{esc}</strong>")
+        else:
+            chunks.append(esc)
+    return "".join(chunks)
+
+
+def _rationale_callout_html(main: str, macro: str | None, active: str | None) -> str:
+    inner = f'<div class="cc-rationale-md">{_md_bold_segments_to_html(main)}</div>'
+    if macro:
+        inner += f'<p class="cc-card-rationale-secondary">{_cc_esc(macro)}</p>'
+    if active:
+        inner += f'<p class="cc-card-rationale-secondary">{_cc_esc(active)}</p>'
+    return f'<div class="cc-rationale-callout">{inner}</div>'
+
+
 def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
     """Render one case as a compact card: left (tier, confidence, persona), center (id, signal, pathway, product, why), right (actions)."""
     user_id = hypothesis["user_id"]
@@ -139,7 +164,21 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
             product_name = tp.get("name") or tp.get("code") or "—"
             st.markdown(f'<p class="cc-card-text">Pathway: {_cc_esc(pathway)} · {_cc_esc(product_name)}</p>', unsafe_allow_html=True)
             why = hypothesis.get("nudge") or gov.get("reason") or "No rationale."
-            st.markdown(f'<p class="cc-card-text">{_cc_esc(why)}</p>', unsafe_allow_html=True)
+            main_r, macro_r, active_r = split_composite_nudge_for_display(why)
+            st.markdown(
+                f'<div class="cc-rationale-md cc-card-text">{_md_bold_segments_to_html(main_r)}</div>',
+                unsafe_allow_html=True,
+            )
+            if macro_r:
+                st.markdown(
+                    f'<p class="cc-card-text cc-card-rationale-secondary">{_cc_esc(macro_r)}</p>',
+                    unsafe_allow_html=True,
+                )
+            if active_r:
+                st.markdown(
+                    f'<p class="cc-card-text cc-card-rationale-secondary">{_cc_esc(active_r)}</p>',
+                    unsafe_allow_html=True,
+                )
 
         with col_right:
             # Override rate at moment of decision (duplicated from Audit Status for visibility)
@@ -159,50 +198,54 @@ def render_case_card(hypothesis: dict, features: pd.DataFrame, index: int):
                     action = existing.get("action", "").upper()
                     st.success(f"✓ {action}")
                 else:
-                    # Rejection reason quick-tags (optional) for learning loop
-                    rej_reason_key = f"rej_reason_{card_key}"
-                    rej_text_key = f"rej_text_{card_key}"
-                    rej_options = ["—", "Too aggressive", "Not suitable", "Client context", "Other"]
-                    st.markdown('<p class="cc-card-text">Reason (optional)</p>', unsafe_allow_html=True)
-                    st.selectbox("Reject reason", rej_options, key=rej_reason_key, label_visibility="collapsed")
-                    reason_val = st.session_state.get(rej_reason_key, "—")
-                    if reason_val == "Other":
-                        st.text_input("Other reason", key=rej_text_key, placeholder="Brief reason…", label_visibility="collapsed")
-                    b_rej, b_app = st.columns(2)
-                    with b_rej:
-                        if st.button("Reject", key=f"rej_{card_key}", use_container_width=True):
-                            reason = st.session_state.get(rej_reason_key, "—") or "—"
-                            if reason == "Other":
-                                reason = st.session_state.get(rej_text_key, "") or "Other"
-                            if reason == "—":
-                                reason = ""
-                            st.session_state.decisions[user_id] = {
-                                "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
-                                "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                                "confidence": hypothesis["confidence"],
-                            }
-                            record_feedback(
-                                user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                                tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
-                                reason=reason,
-                                macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
-                            )
-                            show_micro_feedback_toast("Rejected")
-                            st.rerun()
-                    with b_app:
-                        if st.button("Approve", key=f"app_{card_key}", type="primary", use_container_width=True):
-                            st.session_state.decisions[user_id] = {
-                                "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
-                                "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
-                                "confidence": hypothesis["confidence"],
-                            }
-                            record_feedback(
-                                user_id, hypothesis["persona_tier"], hypothesis["signal"],
-                                tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "approved",
-                                macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
-                            )
-                            show_micro_feedback_toast("Approved")
-                            st.rerun()
+                    st.markdown('<div class="cc-card-actions-divider" aria-hidden="true"></div>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.markdown(
+                            '<div class="cc-decision-actions"><span class="cc-decision-actions-label">Reason (optional)</span></div>',
+                            unsafe_allow_html=True,
+                        )
+                        rej_reason_key = f"rej_reason_{card_key}"
+                        rej_text_key = f"rej_text_{card_key}"
+                        rej_options = ["—", "Too aggressive", "Not suitable", "Client context", "Other"]
+                        st.selectbox("Reject reason", rej_options, key=rej_reason_key, label_visibility="collapsed")
+                        reason_val = st.session_state.get(rej_reason_key, "—")
+                        if reason_val == "Other":
+                            st.text_input("Other reason", key=rej_text_key, placeholder="Brief reason…", label_visibility="collapsed")
+                        b_rej, b_app = st.columns(2)
+                        with b_rej:
+                            if st.button("Reject", key=f"rej_{card_key}", type="secondary", use_container_width=True):
+                                reason = st.session_state.get(rej_reason_key, "—") or "—"
+                                if reason == "Other":
+                                    reason = st.session_state.get(rej_text_key, "") or "Other"
+                                if reason == "—":
+                                    reason = ""
+                                st.session_state.decisions[user_id] = {
+                                    "action": "rejected", "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                                    "confidence": hypothesis["confidence"],
+                                }
+                                record_feedback(
+                                    user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                                    tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "rejected",
+                                    reason=reason,
+                                    macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                                )
+                                show_micro_feedback_toast("Rejected")
+                                st.rerun()
+                        with b_app:
+                            if st.button("Approve", key=f"app_{card_key}", type="primary", use_container_width=True):
+                                st.session_state.decisions[user_id] = {
+                                    "action": "approved", "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    "signal": hypothesis["signal"], "persona_tier": hypothesis["persona_tier"],
+                                    "confidence": hypothesis["confidence"],
+                                }
+                                record_feedback(
+                                    user_id, hypothesis["persona_tier"], hypothesis["signal"],
+                                    tp.get("code", ""), hypothesis["confidence"], gov.get("tier", ""), "approved",
+                                    macro_reasons="; ".join(hypothesis.get("macro_reasons", [])),
+                                )
+                                show_micro_feedback_toast("Approved")
+                                st.rerun()
 
         # Inline expand: View Details — structured transparency for decision clarity
         with st.expander("View Details ▾", expanded=False):
@@ -300,15 +343,15 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
         metric_with_info("months_of_runway", f"{runway:.1f}", delta_color=runway_icon)
 
     with imp3:
-        st.markdown("**Macro Adjustments**")
-        if hypothesis.get("macro_reasons"):
-            for mr in hypothesis["macro_reasons"]:
-                st.caption(f"• {mr}")
-        else:
-            st.caption("No macro adjustments applied.")
+        st.markdown("**Macro**")
+        mr_list = hypothesis.get("macro_reasons") or []
+        macro_line = "; ".join(str(x).strip() for x in mr_list if x and str(x).strip())
+        if not macro_line:
+            macro_line = "No macro adjustments applied."
         macro = st.session_state.get("macro")
         if macro:
-            st.caption(f"BoC: {macro.boc_prime_rate:.2f}% | VIX: {macro.vix:.0f}")
+            macro_line += f" · BoC {macro.boc_prime_rate:.2f}% · VIX {macro.vix:.0f}"
+        st.caption(macro_line)
 
     # Trajectory charts — collapsed
     user_features = features[features["user_id"] == user_id].sort_values("month")
@@ -349,12 +392,10 @@ def _render_detail(hypothesis: dict, features: pd.DataFrame):
         for sa in safety_actions:
             st.error(f"🛑 **Safety brake:** {sa.get('reason', sa.get('type', 'Unknown'))} — metric: {sa.get('metric', '')}")
 
-    # Recommendation Rationale — full-width, prominent
-    st.markdown(
-        f'<div style="background:#f8f8f8; border-left:4px solid {WS_GOLD}; padding:0.75rem 1rem; border-radius:4px; margin-bottom:1rem;">'
-        f'{hypothesis.get("nudge", "No rationale available.")}</div>',
-        unsafe_allow_html=True,
-    )
+    # Recommendation Rationale — full-width, prominent (markdown bold rendered; macro folded as secondary line)
+    nudge_raw = hypothesis.get("nudge", "No rationale available.")
+    _m, _mac, _act = split_composite_nudge_for_display(nudge_raw)
+    st.markdown(_rationale_callout_html(_m, _mac, _act), unsafe_allow_html=True)
 
     # Override rate at moment of decision
     compliance = get_compliance_info()
@@ -484,15 +525,15 @@ def main():
     st.markdown(f'<div class="ws-tier-segment-row" data-current-tier="{current_tier}"></div>', unsafe_allow_html=True)
     seg_r, seg_a, seg_g = st.columns(3)
     with seg_r:
-        if st.button(f"🔴 Red ({tier_counts['red']})", key="seg_red", use_container_width=True, type="primary" if current_tier == "red" else "secondary"):
+        if st.button(f"🔴 Red ({tier_counts['red']})", key="seg_red", use_container_width=True, type="secondary"):
             st.session_state.pulse_queue_tier = "red"
             st.rerun()
     with seg_a:
-        if st.button(f"🟠 Amber ({tier_counts['amber']})", key="seg_amber", use_container_width=True, type="primary" if current_tier == "amber" else "secondary"):
+        if st.button(f"🟠 Amber ({tier_counts['amber']})", key="seg_amber", use_container_width=True, type="secondary"):
             st.session_state.pulse_queue_tier = "amber"
             st.rerun()
     with seg_g:
-        if st.button(f"🟢 Green ({tier_counts['green']})", key="seg_green", use_container_width=True, type="primary" if current_tier == "green" else "secondary"):
+        if st.button(f"🟢 Green ({tier_counts['green']})", key="seg_green", use_container_width=True, type="secondary"):
             st.session_state.pulse_queue_tier = "green"
             st.rerun()
 
